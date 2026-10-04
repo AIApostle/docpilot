@@ -7,11 +7,15 @@ authors = [
     { name = "AI_Apostle", email = "achasaviourikhamate@gmail.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "fastapi>=0.142.2",
+    "httpx>=0.28.1",
+    "memwal>=0.1.11",
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "requests>=2.34.2",
+    "uvicorn>=0.54.0",
+]
 
-[project.scripts]
-backend = "backend:main"
-
-[build-system]
-requires = ["uv_build>=0.12.5,<0.13.0"]
-build-backend = "uv_build"
+[tool.uv]
+package = false
