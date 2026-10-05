@@ -8,14 +8,22 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "email-validator>=2.3.0",
     "fastapi>=0.142.2",
     "httpx>=0.28.1",
-    "memwal>=0.1.11",
+    "memwal[openai]>=0.1.11",
+    "openai>=3.24.0",
+    "openai-agents>=0.23.1",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
     "requests>=2.34.2",
+    "supabase>=2.32.0",
     "uvicorn>=0.54.0",
 ]
 
-[tool.uv]
-package = false
+[project.scripts]
+backend = "backend:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"

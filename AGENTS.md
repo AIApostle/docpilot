@@ -23,8 +23,11 @@ Whenever an agent operates on this repository:
 - Handle error boundaries, edge cases, and unexpected states explicitly.
 
 ### Documentation-First Development
-- Always consult and read official documentation before using, configuring, or integrating any framework, tool, SDK, or external library.
+- Always consult and read official documentation on how things are intended to be done before using, configuring, or integrating any framework, tool, SDK, or external library.
 - Verify API contracts, deprecation statuses, and version compatibility before implementing integrations.
+
+### Mandatory Skill Utilization for Best Practices
+- Always check and use your specialized skills (e.g., Supabase, Render, Python dependencies, database management, security) whenever performing relevant tasks to ensure established best practices and project conventions are strictly followed.
 
 ### Database & SQL File Isolation
 - Each database table must have its own separate, dedicated SQL queries file.
