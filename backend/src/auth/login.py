@@ -4,8 +4,8 @@ from fastapi import HTTPException, status
 from supabase import AsyncClient
 from supabase_auth.errors import AuthApiError, AuthError
 
-from src.client.supabase_client import get_supabase_client
-from src.schemas.login import DoctorSummary, LoginRequest, LoginResponse
+from client.supabase_client import get_supabase_client
+from schemas.login import DoctorSummary, LoginRequest, LoginResponse
 
 logger = logging.getLogger(__name__)
 

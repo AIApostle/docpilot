@@ -4,8 +4,8 @@ from fastapi import HTTPException, status
 from supabase import AsyncClient
 from supabase_auth.errors import AuthApiError, AuthError
 
-from src.client.supabase_client import get_supabase_client
-from src.schemas.signup import SignupRequest, SignupResponse
+from client.supabase_client import get_supabase_client
+from schemas.signup import SignupRequest, SignupResponse
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ async def signup_doctor(
             access_token = auth_response.session.access_token
             token_type = auth_response.session.token_type or "bearer"
         else:
-            from src.auth.jwt import create_access_token
+            from .jwt import create_access_token
             access_token = create_access_token({
                 "sub": doctor_id,
                 "email": email,

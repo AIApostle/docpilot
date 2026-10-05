@@ -1,7 +1,7 @@
 from typing import Optional
 from fastapi import HTTPException, status
 from supabase import AsyncClient, create_async_client
-from src.config import settings
+from .config import settings
 
 _async_supabase_client: Optional[AsyncClient] = None
 

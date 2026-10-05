@@ -4,8 +4,8 @@ from fastapi import HTTPException, status
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
-from src.client.config import settings
-from src.schemas.token import TokenPayload
+from client.config import settings
+from schemas.token import TokenPayload
 
 
 def create_access_token(

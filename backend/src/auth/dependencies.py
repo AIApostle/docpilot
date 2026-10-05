@@ -3,9 +3,9 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from src.auth.jwt import decode_access_token
-from src.client.supabase_client import get_supabase_client
-from src.schemas.token import TokenPayload
+from .jwt import decode_access_token
+from client.supabase_client import get_supabase_client
+from schemas.token import TokenPayload
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=True)
