@@ -1,4 +1,5 @@
 from typing import List, Optional
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,7 +9,10 @@ class ClientSettings(BaseSettings):
     PORT: int = 8000
 
     # JWT Authentication
-    SECRET_KEY: str = "docpilot-secure-dev-secret-key-at-least-32-characters"
+    SECRET_KEY: str = Field(
+        default="docpilot-local-dev-secret-change-me",
+        description="Secret used to sign app-issued JWTs. Override in environment for non-local deployments.",
+    )
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 
@@ -41,7 +45,8 @@ class ClientSettings(BaseSettings):
     WALRUS_ENV: str = "dev"
     WALRUS_DELEGATE_KEY: str = ""
     WALRUS_ACCOUNT_ID: str = ""
-    WALRUS_SERVER_URL: str = "https://relayer.dev.walrus.space"
+    WALRUS_SERVER_URL: str = "https://relayer.dev.memwal.ai"
+    WALRUS_VERIFY: bool = False
 
     # Telegram Bot API Configuration
     TELEGRAM_BOT_TOKEN: str = ""
@@ -53,6 +58,17 @@ class ClientSettings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def validate_runtime_security(self):
+        env = (self.ENVIRONMENT or "").lower()
+        default_dev_secrets = {
+            "docpilot-local-dev-secret-change-me",
+            "docpilot-secure-dev-secret-key-at-least-32-characters",
+        }
+        if env in {"production", "prod"} and self.SECRET_KEY in default_dev_secrets:
+            raise ValueError("SECRET_KEY must be configured with a non-default secret in production.")
+        return self
 
 
 # Client settings singleton instance

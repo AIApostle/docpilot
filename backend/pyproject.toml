@@ -1,7 +1,7 @@
 [project]
-name = "backend"
+name = "docpilot-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "DocPilot backend API and clinical memory service"
 readme = "README.md"
 authors = [
     { name = "AI_Apostle", email = "achasaviourikhamate@gmail.com" }
@@ -21,9 +21,14 @@ dependencies = [
     "uvicorn>=0.54.0",
 ]
 
-[project.scripts]
-backend = "backend:main"
+[tool.uv]
+package = false
 
-[build-system]
-requires = ["uv_build>=0.12.5,<0.13.0"]
-build-backend = "uv_build"
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]

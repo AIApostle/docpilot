@@ -35,7 +35,7 @@ class WalrusClient:
                 from memwal import ENV_PRESETS, MemWal
                 env = ENV_PRESETS.get(settings.WALRUS_ENV, ENV_PRESETS["dev"])
                 self._client = await MemWal.create(
-                    delegate_private_key=delegate_key,
+                    key=delegate_key,
                     account_id=account_id,
                     server_url=settings.WALRUS_SERVER_URL,
                     env=env,
@@ -78,11 +78,14 @@ class WalrusClient:
         await self.initialize()
         namespace = get_doctor_namespace(doctor_id)
         try:
-            res = await self._client.recall(
-                query.strip(),
-                namespace=namespace,
-                limit=limit,
-            )
+            recall_kwargs = {
+                "query": query.strip(),
+                "namespace": namespace,
+                "limit": limit,
+            }
+            if min_relevance is not None:
+                recall_kwargs["max_distance"] = max(0.0, 1.0 - float(min_relevance))
+            res = await self._client.recall(**recall_kwargs)
             recalled_texts = []
             if res and hasattr(res, "results"):
                 for item in res.results:
