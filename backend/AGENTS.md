@@ -24,6 +24,7 @@
 - **Framework**: FastAPI with Uvicorn.
 - **Data Modeling & Settings**: Pydantic v2 and `pydantic-settings`.
 - **Application Mode**: Keep `[tool.uv] package = false` in `pyproject.toml` since the backend is an application service, not a distributable wheel package.
+- **Database Engine**: Exclusively Supabase (PostgreSQL) via `supabase-py` async client (`supabase>=2.32.0`). **SQLite, LibSQL, or local file databases are strictly forbidden**.
 
 ## 6. Security-First Architecture
 - **Input Validation**: Validate every request body, query parameter, and header using strict Pydantic schemas.
@@ -35,6 +36,7 @@
   - Use parameterized queries or Supabase client abstractions to prevent injection attacks.
 
 ## 7. Database & SQL Query Isolation
+- **Exclusively Supabase**: All application data, relational schemas, and auth identities are managed via Supabase PostgreSQL. SQLite is strictly forbidden.
 - **Dedicated File Per Table**: Every database table must have its own separate, dedicated SQL queries file under `src/db/`.
 - **Never Mix Table Queries**: Do not mix queries across multiple tables in a single file. Keep each table's queries strictly isolated to its respective query file.
 

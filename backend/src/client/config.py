@@ -21,8 +21,6 @@ class ClientSettings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
     SUPABASE_ANON_KEY: str = ""
 
-    # Database Configuration
-    DATABASE_PATH: str = "docpilot.db"
 
     # OpenRouter LLM Client Configuration
     OPENROUTER_API_KEY: str = ""

@@ -30,8 +30,9 @@ Whenever an agent operates on this repository:
 - Always check and use your specialized skills (e.g., Supabase, Render, Python dependencies, database management, security) whenever performing relevant tasks to ensure established best practices and project conventions are strictly followed.
 
 ### Database & SQL File Isolation
-- Each database table must have its own separate, dedicated SQL queries file.
-- Never mix or combine queries from different tables into a single file. Keep query definitions strictly separated and scoped per table.
+- **Exclusively Supabase (PostgreSQL)**: DocPilot strictly uses **Supabase** (PostgreSQL / Supabase Auth / async Supabase Client) as the sole application database engine. **SQLite, LibSQL, or local file-based databases are strictly forbidden**.
+- **Dedicated File Per Table**: Each database table must have its own separate, dedicated SQL queries/operations file under `src/db/`.
+- **Never Mix Queries**: Never mix or combine queries from different tables into a single file. Keep query definitions strictly separated and scoped per table.
 
 ### Python Source Root & Import Convention
 - The `src/` directory is the root directory for Python source code.

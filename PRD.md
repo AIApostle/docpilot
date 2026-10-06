@@ -121,7 +121,7 @@ CREATE INDEX IF NOT EXISTS idx_tg_doctor_id ON telegram_connections(doctor_id);
 ```
 
 ### 4.2 Database Strategy
-- **Primary Engine**: Supabase PostgreSQL managed database, accessed via async Supabase client (`src/client/supabase_client.py` and `src/client/db.py`).
+- **Primary Engine**: Supabase PostgreSQL managed database, accessed via async Supabase client (`src/client/supabase_client.py`). SQLite or local database engines are strictly forbidden.
 - **Query Isolation**: 
   - `doctors_queries.py`: `create_doctor`, `get_doctor_by_email`, `get_doctor_by_id`.
   - `telegram_queries.py`: `create_connection`, `get_connection_by_telegram_id`, `delete_connection`.
@@ -195,7 +195,7 @@ backend/
     │   └── dependencies.py      # FastAPI Depends(get_current_doctor)
     ├── client/                  # External service clients (Single Responsibility)
     │   ├── __init__.py
-    │   ├── db.py                # Database connection factory (SQLite / LibSQL)
+    │   ├── supabase_client.py   # Supabase client singleton & connection manager (PostgreSQL)
     │   ├── llm.py               # OpenRouter LLM Client (OpenAI SDK with base_url=https://openrouter.ai/api/v1)
     │   └── telegram.py          # Telegram Bot API client (sendMessage, setWebhook)
     ├── memory/                  # Walrus Memory Subsystem
@@ -412,7 +412,7 @@ Guidelines:
 ### Phase 1: Foundation & Infrastructure (Immediate Step)
 1. **Pydantic Schemas** (`src/schemas/auth.py`, `src/schemas/chat.py`, `src/schemas/telegram.py`).
 2. **Database Engine & Isolated Queries**:
-   - `src/client/db.py` (connection manager).
+   - `src/client/supabase_client.py` (Supabase client & connection manager).
    - `src/db/schema.py` (schema creation).
    - `src/db/doctors_queries.py` (doctors SQL queries).
    - `src/db/telegram_queries.py` (telegram connections SQL queries).
