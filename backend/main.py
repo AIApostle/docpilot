@@ -11,9 +11,9 @@ if str(SRC_DIR) not in sys.path:
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from client.config import settings
-from client.supabase_client import close_supabase_client
-from pages.auth import router as auth_router
+from src.client.config import settings
+from src.client.supabase_client import close_supabase_client
+from src.pages.auth import router as auth_router
 
 logging.basicConfig(
     level=logging.INFO,

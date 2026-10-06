@@ -18,7 +18,11 @@ class ClientSettings(BaseSettings):
     # Supabase Client Configuration
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""  # Service role key or main API key
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
     SUPABASE_ANON_KEY: str = ""
+
+    # Database Configuration
+    DATABASE_PATH: str = "docpilot.db"
 
     # OpenRouter LLM Client Configuration
     OPENROUTER_API_KEY: str = ""
@@ -38,7 +42,7 @@ class ClientSettings(BaseSettings):
     TELEGRAM_WEBHOOK_URL: str = ""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env", "backend/.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

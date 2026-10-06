@@ -18,7 +18,7 @@ async def get_supabase_client() -> AsyncClient:
         return _async_supabase_client
 
     url = settings.SUPABASE_URL.strip()
-    key = (settings.SUPABASE_KEY or settings.SUPABASE_ANON_KEY).strip()
+    key = (settings.SUPABASE_KEY or settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_ANON_KEY or "").strip()
 
     if not url or not key:
         raise HTTPException(
