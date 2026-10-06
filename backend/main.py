@@ -11,9 +11,12 @@ if str(SRC_DIR) not in sys.path:
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.client.config import settings
-from src.client.supabase_client import close_supabase_client
-from src.pages.auth import router as auth_router
+from client.config import settings
+from client.supabase_client import close_supabase_client
+from db.schema import verify_database_schema
+from pages.auth import router as auth_router
+from pages.chat import router as chat_router
+from pages.telegram import router as telegram_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,6 +29,7 @@ logger = logging.getLogger("docpilot.main")
 async def lifespan(app: FastAPI):
     """Application startup and graceful shutdown lifecycle."""
     logger.info("Starting DocPilot API backend in %s mode...", settings.ENVIRONMENT)
+    await verify_database_schema()
     yield
     logger.info("Shutting down DocPilot API backend, cleaning up resources...")
     await close_supabase_client()
@@ -84,6 +88,9 @@ async def root():
 
 # Mount Routers
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+app.include_router(chat_router, prefix="/chat", tags=["Consultations"])
+app.include_router(chat_router, prefix="/chats", tags=["Consultations (Frontend Alias)"], include_in_schema=False)
+app.include_router(telegram_router, prefix="/telegram", tags=["Telegram Bot"])
 
 
 if __name__ == "__main__":

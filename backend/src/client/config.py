@@ -25,7 +25,7 @@ class ClientSettings(BaseSettings):
     # OpenRouter LLM Client Configuration
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
-    OPENROUTER_MODEL: str = "anthropic/claude-3.5-sonnet"
+    OPENROUTER_MODEL: str = "openai/gpt-4o-mini"
 
     # Walrus Memory Subsystem Configuration
     WALRUS_ENABLED: bool = True

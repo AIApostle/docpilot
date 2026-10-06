@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, status
 from auth.dependencies import get_current_doctor
 from auth.login import login_doctor
 from auth.signup import signup_doctor
+from client.supabase_client import get_supabase_client
 from schemas.login import LoginRequest, LoginResponse
 from schemas.signup import SignupRequest, SignupResponse
 from schemas.token import TokenPayload
@@ -54,3 +55,19 @@ async def get_me(
     current_doctor: TokenPayload = Depends(get_current_doctor),
 ) -> TokenPayload:
     return current_doctor
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_200_OK,
+    summary="Log out current physician session",
+    description="Terminates the active session.",
+)
+async def logout() -> dict:
+    try:
+        supabase = await get_supabase_client()
+        await supabase.auth.sign_out()
+    except Exception:
+        pass
+    return {"status": "ok", "message": "Successfully logged out."}
+
