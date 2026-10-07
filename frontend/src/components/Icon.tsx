@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ui } from '../ui'
 
 export type IconName = 'book' | 'plus' | 'refresh' | 'chevron' | 'send' | 'menu' | 'close' | 'logout' | 'lock' | 'arrow' | 'eye' | 'eyeOff' | 'paperclip'
 
@@ -57,7 +58,7 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   return (
     <svg
       aria-hidden="true"
-      className="icon"
+      className={ui.icon}
       fill="none"
       height={size}
       stroke="currentColor"

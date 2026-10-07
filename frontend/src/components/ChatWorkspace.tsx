@@ -5,6 +5,7 @@ import { ConversationPanel } from './ConversationPanel'
 import { HistorySidebar } from './HistorySidebar'
 import { Icon } from './Icon'
 import { MessageComposer } from './MessageComposer'
+import { ui } from '../ui'
 
 interface ChatWorkspaceProps {
   route: Route
@@ -56,9 +57,9 @@ export function ChatWorkspace({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedId = route.kind === 'chat' ? route.id : undefined
   const isNew = route.kind === 'new'
-  const conversationTitle = activeConversation?.title || (
-    selectedId ? 'Conversation' : 'New conversation'
-  )
+  const conversationTitle = selectedId && activeConversation?.messages.length
+    ? activeConversation.title || 'Conversation'
+    : undefined
   const messages = activeConversation?.messages ?? []
 
   useEffect(() => {
@@ -66,7 +67,7 @@ export function ChatWorkspace({
   }, [activeConversation?.messages.length])
 
   return (
-    <div className="app-shell">
+    <div className={ui.appShell}>
       <HistorySidebar
         activeId={selectedId}
         chats={chats}
@@ -81,19 +82,19 @@ export function ChatWorkspace({
         previewMode={previewMode}
       />
 
-      <main className="workspace">
-        <header className="workspace-header">
+      <main className={ui.workspace}>
+        <header className={ui.workspaceHeader}>
           <button
             aria-label="Open conversation history"
-            className="icon-button mobile-menu-button"
+            className={`${ui.iconButton} ${ui.mobileMenu}`}
             onClick={onMenu}
             type="button"
           >
             <Icon name="menu" size={20} />
           </button>
-          <div className="workspace-title-wrap">
-            <h1>{conversationTitle}</h1>
-            <p>
+          <div className={ui.workspaceTitle}>
+            {conversationTitle && <h1 className={ui.workspaceTitleText}>{conversationTitle}</h1>}
+            <p className={ui.workspaceSubtitle}>
               {previewMode
                 ? 'Development preview · messages are read only.'
                 : isNew
@@ -102,7 +103,7 @@ export function ChatWorkspace({
             </p>
           </div>
           {!previewMode && (
-            <button className="header-new-button" onClick={onNew} type="button">
+            <button className={ui.headerNew} onClick={onNew} type="button">
               <Icon name="plus" size={16} />
               <span>New</span>
             </button>
@@ -110,15 +111,15 @@ export function ChatWorkspace({
         </header>
 
         {historyError && (
-          <div className="inline-alert history-alert" role="alert">
+          <div className={ui.inlineAlert} role="alert">
             <span>{historyError}</span>
             <button onClick={onRefresh} type="button">Try again</button>
           </div>
         )}
         {threadError && (
-          <div className="inline-alert thread-alert" role="alert">
+          <div className={ui.inlineAlert} role="alert">
             <span>{threadError}</span>
-            <button aria-label="Dismiss message error" onClick={onDismissThreadError} type="button">
+            <button aria-label="Dismiss message error" className={ui.iconButton} onClick={onDismissThreadError} type="button">
               <Icon name="close" size={16} />
             </button>
           </div>
@@ -135,7 +136,7 @@ export function ChatWorkspace({
           threadLoading={Boolean(selectedId && !activeConversation)}
         />
 
-        <div className="composer-dock">
+        <div className={ui.composerDock}>
           <MessageComposer
             busy={sending}
             onChange={onDraftChange}

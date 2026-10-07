@@ -3,6 +3,7 @@ import { getTelegramWidgetConfig } from '../api'
 import type { TelegramConnectPayload } from '../api'
 import { Brand } from './Brand'
 import { Icon } from './Icon'
+import { ui } from '../ui'
 
 declare global {
   interface Window {
@@ -76,54 +77,92 @@ export function TelegramSetupPage({
   }, [botUsername])
 
   return (
-    <main className="telegram-page">
-      <div className="telegram-shell">
-        <header className="telegram-header">
-          <button className="text-button" onClick={onBack} type="button">
+    <main className={ui.telegramPage}>
+      <div className={ui.telegramShell}>
+        <header className={ui.telegramHeader}>
+          <button className={ui.textButton} onClick={onBack} type="button">
             ← Back to workspace
           </button>
           <Brand />
         </header>
 
-        <section className="telegram-layout">
-          <div className="telegram-intro">
-            <div className="empty-page-mark" aria-hidden="true">
-              <Icon name="book" size={22} />
+        <section className={ui.telegramLayout}>
+          <div className={ui.telegramIntro}>
+            <div className={ui.telegramMark} aria-hidden="true">
+              <Icon name="send" size={23} />
             </div>
-            <div className="telegram-copy">
-              <p className="telegram-kicker">Clinical messaging</p>
-              <h1>Connect your Telegram account</h1>
-              <p>
-                Sign in with Telegram to link your account to DocPilot. Messages sent to the bot then use the same doctor identity and memory scope as this workspace.
+            <div>
+              <h1 className={ui.telegramTitle}>Your workflow, now on Telegram.</h1>
+              <p className={ui.telegramCopy}>
+                Link the Telegram account you use for work. Messages sent to your DocPilot bot use the same doctor identity and memory scope as this workspace.
               </p>
             </div>
+            <p className={ui.telegramTrust}>
+              <Icon name="lock" size={17} />
+              Telegram verifies your account before DocPilot links it to this workspace.
+            </p>
           </div>
 
-          <div className="telegram-connect-column">
-            {error && <div className="form-alert" role="alert"><span>{error}</span></div>}
-            {success && <div className="inline-alert success-alert" role="status"><span>{success}</span></div>}
-            {widgetError && <p className="form-alert" role="alert">{widgetError}</p>}
+          <section aria-labelledby="telegram-connect-title" className={ui.telegramPanel}>
+            <div className={ui.telegramPanelHeading}>
+              <h2 className="text-xl font-semibold tracking-tight" id="telegram-connect-title">Link your account</h2>
+              <p className="mt-2 text-sm text-ink-quiet">Two quick steps, then you can message your bot.</p>
+            </div>
 
-            {!widgetError && !botUsername && <p role="status">Loading Telegram sign-in…</p>}
-            <div aria-label="Sign in with Telegram" className="telegram-widget-mount" ref={widgetRef} />
+            {error && <div className={ui.formAlert} role="alert"><span>{error}</span></div>}
+            {success && <div className={`${ui.inlineAlert} text-green-deep`} role="status"><span>{success}</span></div>}
+            {widgetError && <p className={ui.formAlert} role="alert">{widgetError}</p>}
 
-            <div className="telegram-actions">
-              {botUsername && (
-                <a className="button-primary telegram-open-bot" href={`https://t.me/${botUsername}`} rel="noreferrer" target="_blank">
-                  Open @{botUsername} in Telegram
-                  <Icon name="arrow" size={16} />
-                </a>
-              )}
+            <ol aria-label="Connect Telegram in two steps" className={ui.telegramSteps}>
+              <li className={ui.telegramStep}>
+                <span aria-hidden="true" className={ui.telegramStepNumber}>1</span>
+                <div className={ui.telegramStepContent}>
+                  <h3 className="font-semibold">Verify your Telegram account</h3>
+                  <p className="text-sm leading-relaxed text-ink-soft">Use Telegram’s sign-in button to securely link this workspace.</p>
+                  {!widgetError && !botUsername && (
+                    <p className="text-sm text-ink-quiet" role="status">Loading Telegram sign-in…</p>
+                  )}
+                  <div
+                    aria-busy={busy}
+                    aria-label="Sign in with Telegram"
+                    className="min-h-12"
+                    ref={widgetRef}
+                    role="group"
+                  />
+                  {busy && <p className="text-sm text-ink-quiet" role="status">Linking your account…</p>}
+                </div>
+              </li>
+              <li className={ui.telegramStep}>
+                <span aria-hidden="true" className={ui.telegramStepNumber}>2</span>
+                <div className={ui.telegramStepContent}>
+                  <h3 className="font-semibold">Open your DocPilot bot</h3>
+                  <p className="text-sm leading-relaxed text-ink-soft">Once linked, open the bot to start a conversation.</p>
+                  {botUsername && (
+                    <a
+                      className={ui.primaryButton}
+                      href={`https://t.me/${botUsername}`}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Open @{botUsername} in Telegram
+                      <Icon name="arrow" size={16} />
+                    </a>
+                  )}
+                </div>
+              </li>
+            </ol>
+
+            <div className={ui.telegramFooter}>
               <button
-                className="text-button telegram-disconnect"
+                className={ui.textButton}
                 disabled={busy}
                 onClick={() => void onDisconnect()}
                 type="button"
               >
-                Disconnect
+                Disconnect Telegram
               </button>
             </div>
-          </div>
+          </section>
         </section>
       </div>
     </main>

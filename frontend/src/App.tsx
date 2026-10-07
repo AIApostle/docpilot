@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import {
   ApiError,
   connectTelegram,
@@ -18,7 +19,7 @@ import { Icon } from './components/Icon'
 import { TelegramSetupPage } from './components/TelegramSetupPage'
 import { demoConversation, demoHistory } from './data/demoConversation'
 import { isDemoRoute, resolveRoute } from './routes'
-import './App.css'
+import { ui } from './ui'
 
 function errorText(error: unknown): string {
   if (error instanceof ApiError) return error.message
@@ -161,8 +162,14 @@ function App() {
     setAuthBusy(true)
     setAuthError('')
     try {
-      if (route.kind === 'register') await register(credentials)
-      else await login(credentials)
+      const isRegister = route.kind === 'register'
+      if (isRegister) {
+        await register(credentials)
+        toast.success('Your DocPilot account is ready.')
+      } else {
+        await login(credentials)
+        toast.success('Welcome back.')
+      }
       const chats = await getChats()
       setHistory(chats)
       setSessionState('authenticated')
@@ -195,6 +202,7 @@ function App() {
       : null
     if (route.kind === 'chat' && !previousConversation) return false
     const existingId = previousConversation?.id
+    const draftAtSend = draft
     const now = new Date().toISOString()
     const messageText = message.trim() || 'Attached files'
     const userMessage: ChatMessage = {
@@ -207,7 +215,6 @@ function App() {
 
     setSending(true)
     setThreadError('')
-    setDraft('')
     setActiveConversation((current) => ({
       id: current?.id ?? '',
       title: current?.title ?? 'New conversation',
@@ -226,7 +233,7 @@ function App() {
         content: result.reply,
         createdAt: result.updatedAt ?? new Date().toISOString(),
       }
-      const title = result.title || previousConversation?.title || messageText.replace(/\s+/g, ' ').slice(0, 72)
+      const title = previousConversation?.title || result.title || messageText.replace(/\s+/g, ' ').slice(0, 72)
       const conversation: ChatDetail = {
         id: result.id,
         title,
@@ -234,6 +241,7 @@ function App() {
         messages: [...(previousConversation?.messages ?? []), userMessage, assistantMessage],
       }
       setActiveConversation(conversation)
+      setDraft((currentDraft) => currentDraft === draftAtSend ? '' : currentDraft)
       setHistory((current) => [
         { id: conversation.id, title: conversation.title, updatedAt: conversation.updatedAt },
         ...current.filter((chat) => chat.id !== conversation.id),
@@ -245,7 +253,6 @@ function App() {
       return true
     } catch (error) {
       setActiveConversation(previousConversation)
-      setDraft(message)
       setThreadError(errorText(error))
       return false
     } finally {
@@ -307,8 +314,8 @@ function App() {
 
   if (sessionState === 'checking') {
     return (
-      <main className="session-screen" role="status">
-        <span className="loading-rule" />
+      <main className={ui.sessionScreen} role="status">
+        <span className="h-1 w-24 animate-pulse rounded bg-green" />
         <p>Opening your conversation index…</p>
       </main>
     )
@@ -316,12 +323,12 @@ function App() {
 
   if (sessionState === 'error') {
     return (
-      <main className="session-screen session-error">
+      <main className={`${ui.sessionScreen} content-start pt-16`}>
         <Brand />
         <h1>We couldn’t open your memory.</h1>
         <p role="alert">{sessionError}</p>
         <button
-          className="button-primary"
+          className={`${ui.primaryButton} mt-2`}
           onClick={() => {
             setSessionState('checking')
             setSessionError('')
@@ -331,7 +338,7 @@ function App() {
         >
           Try again
         </button>
-        <button className="text-button" onClick={() => navigate('/login')} type="button">
+        <button className={ui.textButton} onClick={() => navigate('/login')} type="button">
           Go to sign in
         </button>
       </main>
@@ -356,9 +363,9 @@ function App() {
   return (
     <>
       {logoutError && (
-        <div className="global-alert" role="alert">
+        <div className={ui.globalAlert} role="alert">
           <span>{logoutError}</span>
-          <button aria-label="Dismiss sign-out error" onClick={() => setLogoutError('')} type="button">
+          <button aria-label="Dismiss sign-out error" className={ui.iconButton} onClick={() => setLogoutError('')} type="button">
             <Icon name="close" size={16} />
           </button>
         </div>
