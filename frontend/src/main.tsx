@@ -12,18 +12,18 @@ createRoot(document.getElementById('root')!).render(
       toastOptions={{
         duration: 3800,
         style: {
-          background: 'var(--paper-bright)',
-          border: '1px solid var(--line)',
+          background: 'var(--color-paper-bright)',
+          border: '1px solid var(--color-line)',
           borderRadius: '12px',
           boxShadow: '0 8px 24px rgb(16 58 40 / 10%)',
-          color: 'var(--ink)',
+          color: 'var(--color-ink)',
           fontSize: '0.9rem',
           padding: '14px 16px',
         },
         success: {
           iconTheme: {
-            primary: 'var(--green)',
-            secondary: 'var(--paper-bright)',
+            primary: 'var(--color-green)',
+            secondary: 'var(--color-paper-bright)',
           },
         },
       }}

@@ -19,7 +19,7 @@ import { Icon } from './components/Icon'
 import { TelegramSetupPage } from './components/TelegramSetupPage'
 import { demoConversation, demoHistory } from './data/demoConversation'
 import { isDemoRoute, resolveRoute } from './routes'
-import './App.css'
+import { ui } from './ui'
 
 function errorText(error: unknown): string {
   if (error instanceof ApiError) return error.message
@@ -314,8 +314,8 @@ function App() {
 
   if (sessionState === 'checking') {
     return (
-      <main className="session-screen" role="status">
-        <span className="loading-rule" />
+      <main className={ui.sessionScreen} role="status">
+        <span className="h-1 w-24 animate-pulse rounded bg-green" />
         <p>Opening your conversation index…</p>
       </main>
     )
@@ -323,12 +323,12 @@ function App() {
 
   if (sessionState === 'error') {
     return (
-      <main className="session-screen session-error">
+      <main className={`${ui.sessionScreen} content-start pt-16`}>
         <Brand />
         <h1>We couldn’t open your memory.</h1>
         <p role="alert">{sessionError}</p>
         <button
-          className="button-primary"
+          className={`${ui.primaryButton} mt-2`}
           onClick={() => {
             setSessionState('checking')
             setSessionError('')
@@ -338,7 +338,7 @@ function App() {
         >
           Try again
         </button>
-        <button className="text-button" onClick={() => navigate('/login')} type="button">
+        <button className={ui.textButton} onClick={() => navigate('/login')} type="button">
           Go to sign in
         </button>
       </main>
@@ -363,9 +363,9 @@ function App() {
   return (
     <>
       {logoutError && (
-        <div className="global-alert" role="alert">
+        <div className={ui.globalAlert} role="alert">
           <span>{logoutError}</span>
-          <button aria-label="Dismiss sign-out error" onClick={() => setLogoutError('')} type="button">
+          <button aria-label="Dismiss sign-out error" className={ui.iconButton} onClick={() => setLogoutError('')} type="button">
             <Icon name="close" size={16} />
           </button>
         </div>

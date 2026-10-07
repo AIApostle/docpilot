@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react'
 import type { ChatAttachment } from '../api'
 import { Icon } from './Icon'
+import { ui } from '../ui'
 
 interface MessageComposerProps {
   value: string
@@ -86,10 +87,11 @@ export function MessageComposer({ value, busy, previewMode, onChange, onSend }: 
   }, [value])
 
   return (
-    <div className="composer-wrap">
-      <form className="message-composer" onSubmit={handleSubmit}>
+    <div className={ui.composerWrap}>
+      <form className={ui.composer} onSubmit={handleSubmit}>
         <label className="visually-hidden" htmlFor="message-input">Message DocPilot</label>
         <textarea
+          className={ui.composerTextarea}
           disabled={previewMode}
           id="message-input"
           maxLength={6000}
@@ -101,9 +103,9 @@ export function MessageComposer({ value, busy, previewMode, onChange, onSend }: 
           value={value}
         />
         {files.length > 0 && (
-          <div aria-label="Attached files" className="composer-file-list">
+          <div aria-label="Attached files" className={ui.fileList}>
             {files.map((file, index) => (
-              <span className="composer-file-chip" key={`${file.name}-${file.lastModified}-${index}`}>
+              <span className={ui.fileChip} key={`${file.name}-${file.lastModified}-${index}`}>
                 <Icon name="paperclip" size={14} />
                 <span>{file.name}</span>
                 <button
@@ -117,8 +119,8 @@ export function MessageComposer({ value, busy, previewMode, onChange, onSend }: 
             ))}
           </div>
         )}
-        <div className="composer-actions">
-          <div className="composer-tools">
+        <div className={ui.composerActions}>
+          <div className={ui.composerTools}>
             <input
               accept=".pdf,.txt,.csv,image/*,audio/*"
               className="visually-hidden"
@@ -130,7 +132,7 @@ export function MessageComposer({ value, busy, previewMode, onChange, onSend }: 
             />
             <button
               aria-label="Attach files"
-              className="attach-button"
+              className={ui.attachButton}
               disabled={previewMode || busy || preparing || files.length >= 5}
               onClick={() => fileInputRef.current?.click()}
               title="Attach files (up to 5 files, 10 MB each)"
@@ -142,16 +144,16 @@ export function MessageComposer({ value, busy, previewMode, onChange, onSend }: 
           </div>
           <button
             aria-label={busy || preparing ? 'Preparing message' : 'Send message'}
-            className="send-button"
+            className={ui.sendButton}
             disabled={previewMode || busy || preparing || (!value.trim() && files.length === 0)}
             type="submit"
           >
-            {busy || preparing ? <span className="send-spinner" /> : <Icon name="send" size={18} />}
+            {busy || preparing ? <span className="size-5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Icon name="send" size={18} />}
           </button>
         </div>
       </form>
-      {fileError && <p className="composer-file-error" role="alert">{fileError}</p>}
-      <p className="composer-disclaimer">
+      {fileError && <p className="mt-2 text-sm text-danger" role="alert">{fileError}</p>}
+      <p className={ui.composerDisclaimer}>
         DocPilot recalls what’s documented. It does not diagnose or recommend treatment.
       </p>
     </div>

@@ -1,6 +1,7 @@
 import type { ChatSummary } from '../api'
 import { Brand } from './Brand'
 import { Icon } from './Icon'
+import { ui } from '../ui'
 
 interface HistorySidebarProps {
   chats: ChatSummary[]
@@ -47,17 +48,17 @@ export function HistorySidebar({
       {isOpen && (
         <button
           aria-label="Close conversation history"
-          className="mobile-scrim"
+          className="fixed inset-0 z-30 h-full w-full bg-ink/35 min-[701px]:hidden"
           onClick={onClose}
           type="button"
         />
       )}
-      <aside className={`history-sidebar${isOpen ? ' history-sidebar-open' : ''}`}>
-        <div className="sidebar-top">
+      <aside className={`${ui.sidebar} ${isOpen ? ui.sidebarOpen : ''}`}>
+        <div className={ui.sidebarTop}>
           <Brand />
           <button
             aria-label="Close history"
-            className="icon-button sidebar-close"
+            className={`${ui.iconButton} ${ui.sidebarClose}`}
             onClick={onClose}
             type="button"
           >
@@ -65,17 +66,17 @@ export function HistorySidebar({
           </button>
         </div>
 
-        <button className="new-conversation-button" disabled={previewMode} onClick={onNew} type="button">
+        <button className={ui.newConversation} disabled={previewMode} onClick={onNew} type="button">
           <Icon name="plus" size={17} />
           <span>New conversation</span>
         </button>
 
-        <div className="history-heading">
-          <h2>History</h2>
+        <div className={ui.historyHeading}>
+          <h2 className={ui.historyHeadingText}>History</h2>
           {!previewMode && (
             <button
               aria-label="Refresh conversation history"
-              className={`icon-button history-refresh${isRefreshing ? ' is-spinning' : ''}`}
+              className={`${ui.iconButton} ${isRefreshing ? 'animate-spin' : ''}`}
               disabled={isRefreshing}
               onClick={onRefresh}
               type="button"
@@ -85,38 +86,38 @@ export function HistorySidebar({
           )}
         </div>
 
-        <nav aria-label="Conversation history" className="history-list">
+        <nav aria-label="Conversation history" className={ui.historyList}>
           {chats.length === 0 ? (
-            <p className="history-empty">
+            <p className={ui.historyEmpty}>
               Conversations you start will be indexed here.
             </p>
           ) : (
             chats.map((chat) => (
               <button
                 aria-current={chat.id === activeId ? 'page' : undefined}
-                className={`history-item${chat.id === activeId ? ' history-item-active' : ''}`}
+                className={`${ui.historyItem} ${chat.id === activeId ? ui.historyItemActive : ''}`}
                 key={chat.id}
                 onClick={() => onSelect(chat.id)}
                 type="button"
               >
-                <span className="history-item-title">{chat.title || 'Untitled conversation'}</span>
-                <span className="history-item-date">{formatDate(chat.updatedAt)}</span>
+                <span className={ui.historyItemTitle}>{chat.title || 'Untitled conversation'}</span>
+                <span className={ui.historyItemDate}>{formatDate(chat.updatedAt)}</span>
               </button>
             ))
           )}
         </nav>
 
-        <div className="sidebar-bottom">
-          <p className="sidebar-note">
+        <div className={ui.sidebarBottom}>
+          <p className={ui.sidebarNote}>
             {previewMode ? 'Synthetic development preview · no conversation data is saved.' : 'A private index of your conversations.'}
           </p>
           {!previewMode && (
             <>
-              <button className="telegram-button" onClick={onTelegram} type="button">
+              <button className={ui.telegramButton} onClick={onTelegram} type="button">
                 <Icon name="book" size={16} />
                 Connect Telegram
               </button>
-              <button className="signout-button" onClick={onLogout} type="button">
+              <button className={ui.signoutButton} onClick={onLogout} type="button">
                 <Icon name="logout" size={16} />
                 Sign out
               </button>
