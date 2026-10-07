@@ -15,6 +15,7 @@ export const apiEndpoints = {
     send: '/chat',
   },
   telegram: {
+    widgetConfig: '/telegram/widget-config',
     connect: '/telegram/connect',
     disconnect: '/telegram/disconnect',
   },

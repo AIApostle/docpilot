@@ -10,7 +10,7 @@ import {
   register,
   sendChatMessage,
 } from './api'
-import type { ChatAttachment, ChatDetail, ChatMessage, ChatSummary } from './api'
+import type { ChatAttachment, ChatDetail, ChatMessage, ChatSummary, TelegramConnectPayload } from './api'
 import { AuthScreen } from './components/AuthScreen'
 import { Brand } from './components/Brand'
 import { ChatWorkspace } from './components/ChatWorkspace'
@@ -267,7 +267,7 @@ function App() {
     }
   }
 
-  async function handleTelegramConnect(payload: { telegram_user_id: number; telegram_username?: string }) {
+  async function handleTelegramConnect(payload: TelegramConnectPayload) {
     setTelegramBusy(true)
     setTelegramState(null)
     try {

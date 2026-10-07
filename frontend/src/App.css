@@ -403,6 +403,13 @@
   gap: 18px;
 }
 
+.telegram-widget-mount {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
 .telegram-actions {
   display: flex;
   flex-wrap: wrap;

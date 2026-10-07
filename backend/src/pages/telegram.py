@@ -8,17 +8,32 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from agent.core import docpilot_agent
 from auth.dependencies import get_current_doctor
 from client.config import settings
-from client.telegram import telegram_client
+from client.telegram import telegram_client, verify_login_widget_payload
 from db.telegram_queries import (
     deactivate_telegram_connection,
     get_connection_by_telegram_id,
     upsert_telegram_connection,
 )
-from schemas.telegram import TelegramConnectRequest, TelegramConnectResponse
+from schemas.telegram import TelegramConnectRequest, TelegramConnectResponse, TelegramWidgetConfig
 from schemas.token import TokenPayload
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.get(
+    "/widget-config",
+    response_model=TelegramWidgetConfig,
+    summary="Get public Telegram Login Widget configuration",
+)
+async def telegram_widget_config() -> TelegramWidgetConfig:
+    username = settings.TELEGRAM_BOT_USERNAME.strip().lstrip("@")
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram Login Widget is not configured.",
+        )
+    return TelegramWidgetConfig(bot_username=username)
 
 
 @router.post(
@@ -32,11 +47,25 @@ async def connect_telegram(
     request: TelegramConnectRequest,
     current_doctor: TokenPayload = Depends(get_current_doctor),
 ) -> TelegramConnectResponse:
+    widget_payload = request.model_dump(exclude_none=True)
+    try:
+        verified = verify_login_widget_payload(widget_payload)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram Login Widget verification is not configured.",
+        ) from exc
+    if not verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Telegram authentication could not be verified. Please sign in with Telegram again.",
+        )
+
     try:
         res = await upsert_telegram_connection(
             doctor_id=current_doctor.sub,
-            telegram_user_id=request.telegram_user_id,
-            telegram_username=request.telegram_username,
+            telegram_user_id=request.id,
+            telegram_username=request.username,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -52,7 +81,7 @@ async def connect_telegram(
     return TelegramConnectResponse(
         status="connected",
         doctor_id=current_doctor.sub,
-        telegram_user_id=request.telegram_user_id,
+        telegram_user_id=request.id,
     )
 
 

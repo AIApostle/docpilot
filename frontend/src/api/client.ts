@@ -38,29 +38,30 @@ function defaultErrorMessage(status: number): string {
 }
 
 const TOKEN_KEY = 'docpilot_access_token'
+let inMemoryToken: string | null = null
 
 export function getStoredToken(): string | null {
+  if (inMemoryToken) return inMemoryToken
   try {
-    return localStorage.getItem(TOKEN_KEY)
+    inMemoryToken = localStorage.getItem(TOKEN_KEY)
+    return inMemoryToken
   } catch {
-    return null
+    return inMemoryToken
   }
 }
 
 export function setStoredToken(token: string): void {
+  inMemoryToken = token
   try {
     localStorage.setItem(TOKEN_KEY, token)
-  } catch {
-    // fallback if storage disabled
-  }
+  } catch { /* Keep the token for this page lifetime when storage is blocked. */ }
 }
 
 export function clearStoredToken(): void {
+  inMemoryToken = null
   try {
     localStorage.removeItem(TOKEN_KEY)
-  } catch {
-    // fallback
-  }
+  } catch { /* The in-memory token is already cleared. */ }
 }
 
 function apiErrorFromResponse(body: unknown, status: number): ApiError {

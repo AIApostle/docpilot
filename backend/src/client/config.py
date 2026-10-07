@@ -50,6 +50,7 @@ class ClientSettings(BaseSettings):
 
     # Telegram Bot API Configuration
     TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_BOT_USERNAME: str = "docpilot_AIbot"
     TELEGRAM_SECRET_TOKEN: str = ""
     TELEGRAM_WEBHOOK_URL: str = ""
 

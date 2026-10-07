@@ -1,6 +1,10 @@
 import { request } from './client'
 import { apiEndpoints } from './endpoints'
-import type { TelegramConnectPayload, TelegramConnectionResult } from './types'
+import type { TelegramConnectPayload, TelegramConnectionResult, TelegramWidgetConfig } from './types'
+
+export async function getTelegramWidgetConfig(): Promise<TelegramWidgetConfig> {
+  return await request<TelegramWidgetConfig>(apiEndpoints.telegram.widgetConfig, { method: 'GET' })
+}
 
 export async function connectTelegram(payload: TelegramConnectPayload): Promise<TelegramConnectionResult> {
   return await request<TelegramConnectionResult>(apiEndpoints.telegram.connect, {

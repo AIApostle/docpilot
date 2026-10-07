@@ -70,8 +70,17 @@ export interface RegisterCredentials {
 }
 
 export interface TelegramConnectPayload {
-  telegram_user_id: number
-  telegram_username?: string
+  id: number
+  first_name: string
+  last_name?: string
+  username?: string
+  photo_url?: string
+  auth_date: number
+  hash: string
+}
+
+export interface TelegramWidgetConfig {
+  bot_username: string
 }
 
 export interface TelegramConnectionResult {
