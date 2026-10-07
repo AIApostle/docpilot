@@ -14,6 +14,9 @@ export const apiEndpoints = {
     detail: chatPath,
     send: '/chat',
   },
+  memory: {
+    preferences: '/memory/preferences',
+  },
   telegram: {
     widgetConfig: '/telegram/widget-config',
     connect: '/telegram/connect',

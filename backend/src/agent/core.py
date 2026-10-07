@@ -10,7 +10,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from agent.memory_extractor import clean_extracted_entities, format_memory_delta
-from agent.prompts import DOCPILOT_SYSTEM_PROMPT, build_clinical_prompt
+from agent.prompts import DOCPILOT_STATIC_SYSTEM_PROMPT, DOCPILOT_SYSTEM_PROMPT, build_clinical_prompt
 from client.llm import generate_chat_completion
 from client.walrus import get_walrus_client
 from schemas.clinical_entity import ExtractedClinicalEntity
@@ -73,26 +73,29 @@ class DocPilotCore:
         self,
         doctor_id: str,
         message: str,
-        conversation_history: Optional[List[Dict[str, str]]] = None,
+        memory_enabled: bool = True,
     ) -> Tuple[str, str, List[ExtractedClinicalEntity], Optional[str]]:
         """Processes a physician's query or note.
 
         Args:
             doctor_id: Authenticated doctor's ID (used for Walrus namespace isolation).
             message: Clinical note or query text.
-            conversation_history: Optional prior messages in current session.
+            memory_enabled: Whether MemWal may be used for recall and writes.
 
         Returns:
             Tuple of (response_text, action_taken, extracted_entities, suggested_title)
         """
-        walrus = await get_walrus_client()
+        walrus = await get_walrus_client() if memory_enabled else None
 
-        # 1. Recall relevant patient memories from Walrus
-        recalled_memories = await walrus.recall(
-            query=message,
-            doctor_id=doctor_id,
-            limit=5,
-        )
+        # 1. MemWal is the only persistent memory layer. Never initialize or
+        # call it when the authenticated doctor's setting is off.
+        recalled_memories = []
+        if walrus is not None:
+            recalled_memories = await walrus.recall(
+                query=message,
+                doctor_id=doctor_id,
+                limit=5,
+            )
 
         # 2. Build clinical prompt
         clinical_user_prompt = build_clinical_prompt(
@@ -101,16 +104,8 @@ class DocPilotCore:
         )
 
         messages = [
-            {"role": "system", "content": DOCPILOT_SYSTEM_PROMPT},
+            {"role": "system", "content": DOCPILOT_SYSTEM_PROMPT if memory_enabled else DOCPILOT_STATIC_SYSTEM_PROMPT},
         ]
-
-        # Include prior context if provided (keep last few turns)
-        if conversation_history:
-            for turn in conversation_history[-4:]:
-                messages.append({
-                    "role": turn.get("role", "user"),
-                    "content": turn.get("content", ""),
-                })
 
         messages.append({"role": "user", "content": clinical_user_prompt})
 
@@ -135,18 +130,28 @@ class DocPilotCore:
         raw_entities = parsed.get("entities") or []
         suggested_title = parsed.get("suggested_title")
 
-        entities = clean_extracted_entities(raw_entities)
+        entities = clean_extracted_entities(raw_entities) if memory_enabled else []
 
         # 4. Commit new assertions to Walrus memory
-        if entities or normalized_action in {"update_memory", "save_new_memory", "save_memory"} or _requests_persistent_memory(message):
+        if memory_enabled and walrus is not None and (
+            entities
+            or normalized_action in {"update_memory", "save_new_memory", "save_memory"}
+            or _requests_persistent_memory(message)
+        ):
             delta_content = format_memory_delta(entities, message)
             await walrus.remember(
                 content=delta_content,
                 doctor_id=doctor_id,
             )
             action_taken = "update_memory"
-        elif recalled_memories and action_taken == "conversational":
+        elif memory_enabled and recalled_memories and action_taken == "conversational":
             action_taken = "recall_memory"
+        elif not memory_enabled:
+            action_taken = (
+                "clarification_needed"
+                if normalized_action == "clarification_needed"
+                else "conversational"
+            )
 
         return response_text, action_taken, entities, suggested_title
 

@@ -110,3 +110,4 @@ async def update_doctor_profile(
     except Exception as exc:
         logger.error("Failed to update profile for doctor '%s': %s", doctor_id, exc)
         return None
+
