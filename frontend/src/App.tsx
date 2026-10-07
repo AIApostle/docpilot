@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ApiError,
+  connectTelegram,
+  disconnectTelegram,
   getChat,
   getChats,
   login,
@@ -8,11 +10,12 @@ import {
   register,
   sendChatMessage,
 } from './api'
-import type { ChatDetail, ChatMessage, ChatSummary } from './api'
+import type { ChatAttachment, ChatDetail, ChatMessage, ChatSummary, TelegramConnectPayload } from './api'
 import { AuthScreen } from './components/AuthScreen'
 import { Brand } from './components/Brand'
 import { ChatWorkspace } from './components/ChatWorkspace'
 import { Icon } from './components/Icon'
+import { TelegramSetupPage } from './components/TelegramSetupPage'
 import { demoConversation, demoHistory } from './data/demoConversation'
 import { isDemoRoute, resolveRoute } from './routes'
 import './App.css'
@@ -53,6 +56,8 @@ function App() {
   const [draft, setDraft] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [logoutError, setLogoutError] = useState('')
+  const [telegramState, setTelegramState] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [telegramBusy, setTelegramBusy] = useState(false)
   const route = useMemo(() => resolveRoute(currentPath), [currentPath])
   const previewMode = isDemoRoute(route)
 
@@ -183,19 +188,21 @@ function App() {
     }
   }
 
-  async function sendMessage(message: string) {
-    if (previewMode || sending || !message.trim()) return
+  async function sendMessage(message: string, attachments: ChatAttachment[] = []): Promise<boolean> {
+    if (previewMode || sending || (!message.trim() && attachments.length === 0)) return false
     const previousConversation = route.kind === 'chat' && activeConversation?.id === route.id
       ? activeConversation
       : null
-    if (route.kind === 'chat' && !previousConversation) return
+    if (route.kind === 'chat' && !previousConversation) return false
     const existingId = previousConversation?.id
     const now = new Date().toISOString()
+    const messageText = message.trim() || 'Attached files'
     const userMessage: ChatMessage = {
       id: `local-user-${Date.now()}`,
       role: 'user',
-      content: message.trim(),
+      content: messageText,
       createdAt: now,
+      attachments: attachments.map(({ filename, file_type }) => ({ filename, file_type })),
     }
 
     setSending(true)
@@ -212,14 +219,14 @@ function App() {
     }))
 
     try {
-      const result = await sendChatMessage(message.trim(), existingId)
+      const result = await sendChatMessage(messageText, existingId, attachments)
       const assistantMessage: ChatMessage = {
         id: `local-assistant-${Date.now()}`,
         role: 'assistant',
         content: result.reply,
         createdAt: result.updatedAt ?? new Date().toISOString(),
       }
-      const title = result.title || previousConversation?.title || message.trim().replace(/\s+/g, ' ').slice(0, 72)
+      const title = result.title || previousConversation?.title || messageText.replace(/\s+/g, ' ').slice(0, 72)
       const conversation: ChatDetail = {
         id: result.id,
         title,
@@ -235,10 +242,12 @@ function App() {
         navigate(`/chat/${encodeURIComponent(result.id)}`, false, true)
         setConversationLoading(false)
       }
+      return true
     } catch (error) {
       setActiveConversation(previousConversation)
       setDraft(message)
       setThreadError(errorText(error))
+      return false
     } finally {
       setSending(false)
     }
@@ -255,6 +264,32 @@ function App() {
       navigate('/login', false, true)
     } catch (error) {
       setLogoutError(errorText(error))
+    }
+  }
+
+  async function handleTelegramConnect(payload: TelegramConnectPayload) {
+    setTelegramBusy(true)
+    setTelegramState(null)
+    try {
+      await connectTelegram(payload)
+      setTelegramState({ type: 'success', message: 'Telegram linked successfully. Your bot should be ready for bedside notes.' })
+    } catch (error) {
+      setTelegramState({ type: 'error', message: errorText(error) })
+    } finally {
+      setTelegramBusy(false)
+    }
+  }
+
+  async function handleTelegramDisconnect() {
+    setTelegramBusy(true)
+    setTelegramState(null)
+    try {
+      await disconnectTelegram()
+      setTelegramState({ type: 'success', message: 'Telegram disconnected from your doctor account.' })
+    } catch (error) {
+      setTelegramState({ type: 'error', message: errorText(error) })
+    } finally {
+      setTelegramBusy(false)
     }
   }
 
@@ -303,6 +338,19 @@ function App() {
     )
   }
 
+  if (route.kind === 'telegram' && sessionState === 'authenticated') {
+    return (
+      <TelegramSetupPage
+        busy={telegramBusy}
+        error={telegramState?.type === 'error' ? telegramState.message : undefined}
+        onBack={() => navigate('/new', false, true)}
+        onConnect={handleTelegramConnect}
+        onDisconnect={handleTelegramDisconnect}
+        success={telegramState?.type === 'success' ? telegramState.message : undefined}
+      />
+    )
+  }
+
   if (sessionState !== 'authenticated') return null
 
   return (
@@ -336,6 +384,7 @@ function App() {
           navigate('/new')
         }}
         onRefresh={() => void refreshHistory()}
+        onTelegram={() => navigate('/telegram')}
         onRetryConversation={() => {
           setThreadError('')
           setConversationLoading(true)

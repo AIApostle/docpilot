@@ -1,6 +1,9 @@
 type JsonObject = Record<string, unknown>
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '')
+const apiBaseUrl = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? 'http://localhost:8000' : '/api')
+).trim().replace(/\/+$/, '')
 
 export class ApiError extends Error {
   readonly status?: number
@@ -34,8 +37,43 @@ function defaultErrorMessage(status: number): string {
   return `The request could not be completed (error ${status}). Check your details and try again.`
 }
 
+const TOKEN_KEY = 'docpilot_access_token'
+let inMemoryToken: string | null = null
+
+export function getStoredToken(): string | null {
+  if (inMemoryToken) return inMemoryToken
+  try {
+    inMemoryToken = localStorage.getItem(TOKEN_KEY)
+    return inMemoryToken
+  } catch {
+    return inMemoryToken
+  }
+}
+
+export function setStoredToken(token: string): void {
+  inMemoryToken = token
+  try {
+    localStorage.setItem(TOKEN_KEY, token)
+  } catch { /* Keep the token for this page lifetime when storage is blocked. */ }
+}
+
+export function clearStoredToken(): void {
+  inMemoryToken = null
+  try {
+    localStorage.removeItem(TOKEN_KEY)
+  } catch { /* The in-memory token is already cleared. */ }
+}
+
 function apiErrorFromResponse(body: unknown, status: number): ApiError {
   if (isObject(body)) {
+    if (Array.isArray(body.detail) && body.detail.length > 0) {
+      const first = body.detail[0]
+      if (isObject(first) && typeof first.msg === 'string') {
+        const field = Array.isArray(first.loc) ? first.loc[first.loc.length - 1] : undefined
+        const prefix = field && field !== 'body' ? `${String(field)}: ` : ''
+        return new ApiError(`${prefix}${first.msg}`, status)
+      }
+    }
     const message = getString(body, 'detail', 'message', 'title', 'error')
     const code = getString(body, 'code', 'error_code')
     if (message) return new ApiError(message, status, code)
@@ -68,7 +106,10 @@ function makeUrl(path: string): string {
   return `${apiBaseUrl}${normalizedPath}`
 }
 
-export async function request(path: string, init: RequestInit = {}): Promise<unknown> {
+export async function request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = getStoredToken()
+  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+
   let response: Response
   try {
     response = await fetch(makeUrl(path), {
@@ -77,6 +118,7 @@ export async function request(path: string, init: RequestInit = {}): Promise<unk
       headers: {
         Accept: 'application/json',
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...authHeaders,
         ...init.headers,
       },
     })
@@ -93,6 +135,12 @@ export async function request(path: string, init: RequestInit = {}): Promise<unk
     throw new ApiError('The server response could not be read. Try again or check the API configuration.', response.status)
   }
 
-  if (!response.ok) throw apiErrorFromResponse(body, response.status)
-  return body
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearStoredToken()
+    }
+    throw apiErrorFromResponse(body, response.status)
+  }
+  return body as T
 }
+

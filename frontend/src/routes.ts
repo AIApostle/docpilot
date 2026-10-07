@@ -1,5 +1,5 @@
 export type Route =
-  | { kind: 'login' | 'register' | 'new' | 'missing' }
+  | { kind: 'login' | 'register' | 'new' | 'missing' | 'telegram' }
   | { kind: 'chat'; id: string }
 
 export const DEMO_CHAT_ID = 'demo'
@@ -10,6 +10,7 @@ export function resolveRoute(pathname: string): Route {
   if (path === '/login' || path === '/') return { kind: 'login' }
   if (path === '/register') return { kind: 'register' }
   if (path === '/new') return { kind: 'new' }
+  if (path === '/telegram') return { kind: 'telegram' }
 
   const chatMatch = path.match(/^\/chat\/([^/]+)$/)
   if (chatMatch) {

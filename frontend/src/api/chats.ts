@@ -1,6 +1,6 @@
 import { ApiError, getString, isObject, request } from './client'
 import { apiEndpoints } from './endpoints'
-import type { ChatDetail, ChatMessage, ChatSummary, SendMessageResult } from './types'
+import type { ChatAttachment, ChatDetail, ChatMessage, ChatSummary, SendMessageResult } from './types'
 
 function parseChatSummary(value: unknown): ChatSummary {
   if (!isObject(value)) throw new ApiError('The server returned an invalid conversation entry.')
@@ -38,6 +38,15 @@ function parseMessage(value: unknown): ChatMessage {
     role,
     content,
     createdAt: getString(value, 'created_at', 'createdAt'),
+    attachments: Array.isArray(value.attachments)
+      ? value.attachments.flatMap((attachment): ChatAttachment[] => {
+          if (!isObject(attachment)) return []
+          const filename = getString(attachment, 'filename')
+          const fileType = getString(attachment, 'file_type')
+          if (!filename || !fileType) return []
+          return [{ filename, file_type: fileType, description: getString(attachment, 'description') }]
+        })
+      : [],
   }
 }
 
@@ -57,12 +66,17 @@ export async function getChat(id: string): Promise<ChatDetail> {
   return parseChatDetail(await request(apiEndpoints.chats.detail(id)))
 }
 
-export async function sendChatMessage(message: string, conversationId?: string): Promise<SendMessageResult> {
+export async function sendChatMessage(
+  message: string,
+  conversationId?: string,
+  attachments: ChatAttachment[] = [],
+): Promise<SendMessageResult> {
   const body = await request(apiEndpoints.chats.send, {
     method: 'POST',
     body: JSON.stringify({
       message,
       ...(conversationId ? { conversation_id: conversationId } : {}),
+      ...(attachments.length ? { attachments } : {}),
     }),
   })
   if (!isObject(body)) throw new ApiError('The server returned an invalid chat response.')

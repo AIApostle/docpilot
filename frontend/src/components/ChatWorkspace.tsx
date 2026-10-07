@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { ChatDetail, ChatSummary } from '../api'
+import type { ChatAttachment, ChatDetail, ChatSummary } from '../api'
 import type { Route } from '../routes'
 import { ConversationPanel } from './ConversationPanel'
 import { HistorySidebar } from './HistorySidebar'
@@ -18,12 +18,13 @@ interface ChatWorkspaceProps {
   draft: string
   previewMode: boolean
   onDraftChange: (value: string) => void
-  onSend: (message: string) => Promise<void>
+  onSend: (message: string, attachments: ChatAttachment[]) => Promise<boolean>
   onNew: () => void
   onSelectChat: (id: string) => void
   onRefresh: () => void
   onRetryConversation: () => void
   onLogout: () => void
+  onTelegram: () => void
   onMenu: () => void
   onCloseMenu: () => void
   onDismissThreadError: () => void
@@ -47,6 +48,7 @@ export function ChatWorkspace({
   onRefresh,
   onRetryConversation,
   onLogout,
+  onTelegram,
   onMenu,
   onCloseMenu,
   onDismissThreadError,
@@ -75,6 +77,7 @@ export function ChatWorkspace({
         onNew={onNew}
         onRefresh={onRefresh}
         onSelect={onSelectChat}
+        onTelegram={onTelegram}
         previewMode={previewMode}
       />
 

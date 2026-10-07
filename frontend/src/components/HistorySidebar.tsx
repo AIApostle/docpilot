@@ -13,6 +13,7 @@ interface HistorySidebarProps {
   onNew: () => void
   onRefresh: () => void
   onSelect: (id: string) => void
+  onTelegram: () => void
 }
 
 function formatDate(value?: string): string {
@@ -39,6 +40,7 @@ export function HistorySidebar({
   onNew,
   onRefresh,
   onSelect,
+  onTelegram,
 }: HistorySidebarProps) {
   return (
     <>
@@ -109,10 +111,16 @@ export function HistorySidebar({
             {previewMode ? 'Synthetic development preview · no conversation data is saved.' : 'A private index of your conversations.'}
           </p>
           {!previewMode && (
-            <button className="signout-button" onClick={onLogout} type="button">
-              <Icon name="logout" size={16} />
-              Sign out
-            </button>
+            <>
+              <button className="telegram-button" onClick={onTelegram} type="button">
+                <Icon name="book" size={16} />
+                Connect Telegram
+              </button>
+              <button className="signout-button" onClick={onLogout} type="button">
+                <Icon name="logout" size={16} />
+                Sign out
+              </button>
+            </>
           )}
         </div>
       </aside>

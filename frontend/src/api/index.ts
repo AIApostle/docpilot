@@ -1,4 +1,14 @@
 export { login, logout, register } from './auth'
 export { getChat, getChats, sendChatMessage } from './chats'
+export { connectTelegram, disconnectTelegram, getTelegramWidgetConfig } from './telegram'
 export { ApiError } from './client'
-export type { ChatDetail, ChatMessage, ChatSummary, SendMessageResult } from './types'
+export type {
+  ChatAttachment,
+  ChatDetail,
+  ChatMessage,
+  ChatSummary,
+  SendMessageResult,
+  TelegramConnectPayload,
+  TelegramConnectionResult,
+  TelegramWidgetConfig,
+} from './types'

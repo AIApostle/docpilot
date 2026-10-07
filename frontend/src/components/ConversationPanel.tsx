@@ -109,6 +109,16 @@ export function ConversationPanel({
               <span>{message.role === 'assistant' ? 'DocPilot' : 'You'}</span>
             </div>
             <p className="message-content">{message.content}</p>
+            {message.attachments && message.attachments.length > 0 && (
+              <ul aria-label="Message attachments" className="message-attachments">
+                {message.attachments.map((attachment, attachmentIndex) => (
+                  <li key={`${attachment.filename}-${attachmentIndex}`}>
+                    <Icon name="paperclip" size={14} />
+                    <span>{attachment.filename}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </article>
         ))}
         {sending && (
