@@ -430,30 +430,6 @@
   justify-content: flex-start;
 }
 
-.telegram-domain-note {
-  margin: 0;
-  color: var(--ink-quiet);
-  font-size: 0.83rem;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-
-.telegram-domain-note a {
-  color: var(--green-deep);
-  font-weight: 650;
-}
-
-.telegram-domain-note code {
-  color: var(--ink);
-  font-size: 0.8rem;
-  overflow-wrap: anywhere;
-}
-
-.telegram-domain-value {
-  display: block;
-  margin-top: 5px;
-}
-
 .telegram-actions {
   display: flex;
   flex-wrap: wrap;

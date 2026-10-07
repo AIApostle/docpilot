@@ -104,11 +104,6 @@ export function TelegramSetupPage({
             {success && <div className="inline-alert success-alert" role="status"><span>{success}</span></div>}
             {widgetError && <p className="form-alert" role="alert">{widgetError}</p>}
 
-            <p className="telegram-domain-note">
-              If Telegram says “Bot domain invalid”, open <a href="https://t.me/BotFather" rel="noreferrer" target="_blank">@BotFather</a>, run <code>/setdomain</code>, select <strong>@{botUsername || 'docpilot_AIbot'}</strong>, and enter this host exactly:
-              <code className="telegram-domain-value">{window.location.hostname}</code>
-            </p>
-
             {!widgetError && !botUsername && <p role="status">Loading Telegram sign-in…</p>}
             <div aria-label="Sign in with Telegram" className="telegram-widget-mount" ref={widgetRef} />
 
