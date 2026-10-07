@@ -584,8 +584,10 @@
 
 .app-shell {
   display: grid;
-  min-height: 100svh;
+  height: 100svh;
+  min-height: 0;
   grid-template-columns: 286px minmax(0, 1fr);
+  overflow: hidden;
   background: var(--paper);
 }
 
@@ -594,11 +596,13 @@
   z-index: 4;
   display: flex;
   min-width: 0;
-  min-height: 100svh;
+  height: 100%;
+  min-height: 0;
   flex-direction: column;
   padding: 24px 17px 17px;
   border-right: 1px solid var(--line);
   background: var(--paper-tint);
+  overflow: hidden;
 }
 
 .sidebar-top {
@@ -684,10 +688,31 @@
 
 .history-list {
   display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
   align-content: start;
   gap: 3px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0 0 12px;
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.history-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+  border: 2px solid var(--paper-tint);
+  border-radius: 999px;
+  background: var(--line-strong);
+  background-clip: padding-box;
+}
+
+.history-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .history-item {
@@ -776,8 +801,10 @@
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 100svh;
+  height: 100%;
+  min-height: 0;
   flex-direction: column;
+  overflow: hidden;
   background: var(--paper-bright);
 }
 
@@ -846,7 +873,27 @@
   flex: 1 1 auto;
   flex-direction: column;
   align-self: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 40px clamp(25px, 7vw, 104px) 28px;
+  scrollbar-color: #a8c2ad transparent;
+  scrollbar-width: thin;
+}
+
+.conversation-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.conversation-panel::-webkit-scrollbar-thumb {
+  border: 2px solid var(--paper-bright);
+  border-radius: 999px;
+  background: #a8c2ad;
+  background-clip: padding-box;
+}
+
+.conversation-panel::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .empty-page {
@@ -1472,7 +1519,9 @@
 
   .app-shell {
     display: block;
+    height: auto;
     min-height: 100svh;
+    overflow: visible;
   }
 
   .history-sidebar {
@@ -1481,7 +1530,8 @@
     bottom: 0;
     left: 0;
     width: min(86vw, 330px);
-    min-height: 100svh;
+    height: 100svh;
+    min-height: 0;
     padding-top: max(20px, env(safe-area-inset-top));
     box-shadow: 12px 0 28px rgb(17 49 32 / 10%);
     transform: translateX(-103%);
@@ -1510,7 +1560,9 @@
   }
 
   .workspace {
+    height: auto;
     min-height: 100svh;
+    overflow: visible;
     padding-bottom: env(safe-area-inset-bottom);
   }
 
@@ -1542,7 +1594,10 @@
 
   .conversation-panel {
     min-height: 0;
+    overflow-y: visible;
+    overscroll-behavior: auto;
     padding: 22px 20px 17px;
+    scrollbar-width: auto;
   }
 
   .empty-page {

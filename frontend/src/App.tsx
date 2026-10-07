@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import {
   ApiError,
   connectTelegram,
@@ -161,8 +162,14 @@ function App() {
     setAuthBusy(true)
     setAuthError('')
     try {
-      if (route.kind === 'register') await register(credentials)
-      else await login(credentials)
+      const isRegister = route.kind === 'register'
+      if (isRegister) {
+        await register(credentials)
+        toast.success('Your DocPilot account is ready.')
+      } else {
+        await login(credentials)
+        toast.success('Welcome back.')
+      }
       const chats = await getChats()
       setHistory(chats)
       setSessionState('authenticated')
@@ -195,6 +202,7 @@ function App() {
       : null
     if (route.kind === 'chat' && !previousConversation) return false
     const existingId = previousConversation?.id
+    const draftAtSend = draft
     const now = new Date().toISOString()
     const messageText = message.trim() || 'Attached files'
     const userMessage: ChatMessage = {
@@ -207,7 +215,6 @@ function App() {
 
     setSending(true)
     setThreadError('')
-    setDraft('')
     setActiveConversation((current) => ({
       id: current?.id ?? '',
       title: current?.title ?? 'New conversation',
@@ -234,6 +241,7 @@ function App() {
         messages: [...(previousConversation?.messages ?? []), userMessage, assistantMessage],
       }
       setActiveConversation(conversation)
+      setDraft((currentDraft) => currentDraft === draftAtSend ? '' : currentDraft)
       setHistory((current) => [
         { id: conversation.id, title: conversation.title, updatedAt: conversation.updatedAt },
         ...current.filter((chat) => chat.id !== conversation.id),
@@ -245,7 +253,6 @@ function App() {
       return true
     } catch (error) {
       setActiveConversation(previousConversation)
-      setDraft(message)
       setThreadError(errorText(error))
       return false
     } finally {
