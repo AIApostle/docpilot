@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ApiError,
+  connectTelegram,
+  disconnectTelegram,
   getChat,
   getChats,
   login,
@@ -13,6 +15,7 @@ import { AuthScreen } from './components/AuthScreen'
 import { Brand } from './components/Brand'
 import { ChatWorkspace } from './components/ChatWorkspace'
 import { Icon } from './components/Icon'
+import { TelegramSetupPage } from './components/TelegramSetupPage'
 import { demoConversation, demoHistory } from './data/demoConversation'
 import { isDemoRoute, resolveRoute } from './routes'
 import './App.css'
@@ -53,6 +56,8 @@ function App() {
   const [draft, setDraft] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [logoutError, setLogoutError] = useState('')
+  const [telegramState, setTelegramState] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [telegramBusy, setTelegramBusy] = useState(false)
   const route = useMemo(() => resolveRoute(currentPath), [currentPath])
   const previewMode = isDemoRoute(route)
 
@@ -258,6 +263,32 @@ function App() {
     }
   }
 
+  async function handleTelegramConnect(payload: { telegram_user_id: number; telegram_username?: string }) {
+    setTelegramBusy(true)
+    setTelegramState(null)
+    try {
+      await connectTelegram(payload)
+      setTelegramState({ type: 'success', message: 'Telegram linked successfully. Your bot should be ready for bedside notes.' })
+    } catch (error) {
+      setTelegramState({ type: 'error', message: errorText(error) })
+    } finally {
+      setTelegramBusy(false)
+    }
+  }
+
+  async function handleTelegramDisconnect() {
+    setTelegramBusy(true)
+    setTelegramState(null)
+    try {
+      await disconnectTelegram()
+      setTelegramState({ type: 'success', message: 'Telegram disconnected from your doctor account.' })
+    } catch (error) {
+      setTelegramState({ type: 'error', message: errorText(error) })
+    } finally {
+      setTelegramBusy(false)
+    }
+  }
+
   if (route.kind === 'login' || route.kind === 'register') {
     return (
       <AuthScreen
@@ -303,6 +334,19 @@ function App() {
     )
   }
 
+  if (route.kind === 'telegram' && sessionState === 'authenticated') {
+    return (
+      <TelegramSetupPage
+        busy={telegramBusy}
+        error={telegramState?.type === 'error' ? telegramState.message : undefined}
+        onBack={() => navigate('/new', false, true)}
+        onConnect={handleTelegramConnect}
+        onDisconnect={handleTelegramDisconnect}
+        success={telegramState?.type === 'success' ? telegramState.message : undefined}
+      />
+    )
+  }
+
   if (sessionState !== 'authenticated') return null
 
   return (
@@ -336,6 +380,7 @@ function App() {
           navigate('/new')
         }}
         onRefresh={() => void refreshHistory()}
+        onTelegram={() => navigate('/telegram')}
         onRetryConversation={() => {
           setThreadError('')
           setConversationLoading(true)

@@ -14,4 +14,8 @@ export const apiEndpoints = {
     detail: chatPath,
     send: '/chat',
   },
+  telegram: {
+    connect: '/telegram/connect',
+    disconnect: '/telegram/disconnect',
+  },
 } as const

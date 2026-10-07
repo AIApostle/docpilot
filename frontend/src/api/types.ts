@@ -60,3 +60,14 @@ export interface RegisterCredentials {
   email: string
   password: string
 }
+
+export interface TelegramConnectPayload {
+  telegram_user_id: number
+  telegram_username?: string
+}
+
+export interface TelegramConnectionResult {
+  status: string
+  doctor_id: string
+  telegram_user_id: number
+}

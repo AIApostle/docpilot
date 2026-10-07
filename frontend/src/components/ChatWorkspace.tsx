@@ -24,6 +24,7 @@ interface ChatWorkspaceProps {
   onRefresh: () => void
   onRetryConversation: () => void
   onLogout: () => void
+  onTelegram: () => void
   onMenu: () => void
   onCloseMenu: () => void
   onDismissThreadError: () => void
@@ -47,6 +48,7 @@ export function ChatWorkspace({
   onRefresh,
   onRetryConversation,
   onLogout,
+  onTelegram,
   onMenu,
   onCloseMenu,
   onDismissThreadError,
@@ -75,6 +77,7 @@ export function ChatWorkspace({
         onNew={onNew}
         onRefresh={onRefresh}
         onSelect={onSelectChat}
+        onTelegram={onTelegram}
         previewMode={previewMode}
       />
 
