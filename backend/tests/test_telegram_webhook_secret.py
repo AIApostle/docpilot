@@ -1,6 +1,7 @@
 import pytest
 from fastapi import HTTPException
 
+from client import telegram as telegram_client_module
 from pages import telegram as telegram_module
 
 
@@ -64,3 +65,24 @@ async def test_linked_telegram_message_uses_linked_doctor_memory_identity(monkey
 
     assert response == {"ok": True}
     assert processed[0]["doctor_id"] == "doctor-123"
+
+
+@pytest.mark.asyncio
+async def test_webhook_setup_uses_configured_live_url_and_secret(monkeypatch):
+    captured = {}
+
+    class FakeTelegramClient:
+        is_configured = True
+
+        async def set_webhook(self, **kwargs):
+            captured.update(kwargs)
+            return True
+
+    monkeypatch.setattr(telegram_module.settings, "TELEGRAM_WEBHOOK_URL", "https://docpilot-yxh9.onrender.com/telegram/webhook")
+    monkeypatch.setattr(telegram_module.settings, "TELEGRAM_SECRET_TOKEN", "a" * 64)
+    monkeypatch.setattr(telegram_client_module, "telegram_client", FakeTelegramClient())
+
+    assert await telegram_client_module.configure_telegram_webhook() is True
+    assert captured["webhook_url"] == "https://docpilot-yxh9.onrender.com/telegram/webhook"
+    assert captured["secret_token"] == "a" * 64
+    assert captured["allowed_updates"] == ["message", "edited_message"]

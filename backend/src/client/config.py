@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,10 +43,22 @@ class ClientSettings(BaseSettings):
     # Walrus Memory Subsystem Configuration
     WALRUS_ENABLED: bool = True
     WALRUS_ENV: str = "dev"
-    WALRUS_DELEGATE_KEY: str = ""
-    WALRUS_ACCOUNT_ID: str = ""
-    WALRUS_SERVER_URL: str = "https://relayer.dev.memwal.ai"
-    WALRUS_VERIFY: bool = False
+    WALRUS_DELEGATE_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEMWAL_PRIVATE_KEY", "WALRUS_DELEGATE_KEY"),
+    )
+    WALRUS_ACCOUNT_ID: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEMWAL_ACCOUNT_ID", "WALRUS_ACCOUNT_ID"),
+    )
+    WALRUS_SERVER_URL: str = Field(
+        default="https://relayer.dev.memwal.ai",
+        validation_alias=AliasChoices("MEMWAL_SERVER_URL", "WALRUS_SERVER_URL"),
+    )
+    WALRUS_VERIFY: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("MEMWAL_VERIFY", "WALRUS_VERIFY"),
+    )
 
     # Telegram Bot API Configuration
     TELEGRAM_BOT_TOKEN: str = ""

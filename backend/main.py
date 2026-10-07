@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from client.config import settings
 from client.supabase_client import close_supabase_client
+from client.telegram import configure_telegram_webhook
 from db.schema import verify_database_schema
 from pages.auth import router as auth_router
 from pages.chat import router as chat_router
@@ -30,6 +31,8 @@ async def lifespan(app: FastAPI):
     """Application startup and graceful shutdown lifecycle."""
     logger.info("Starting DocPilot API backend in %s mode...", settings.ENVIRONMENT)
     await verify_database_schema()
+    if settings.ENVIRONMENT.lower() in {"production", "prod"}:
+        await configure_telegram_webhook()
     yield
     logger.info("Shutting down DocPilot API backend, cleaning up resources...")
     await close_supabase_client()

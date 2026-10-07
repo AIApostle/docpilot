@@ -13,6 +13,16 @@ class WalrusUnavailableError(RuntimeError):
     """Raised when persistent Walrus memory cannot initialize or serve a request."""
 
 
+def _environment_for_server(server_url: str, configured_env: str) -> str:
+    normalized_url = server_url.strip().rstrip("/")
+    environment_by_server = {
+        "https://relayer.memory.walrus.xyz": "prod",
+        "https://relayer-staging.memory.walrus.xyz": "staging",
+        "https://relayer.dev.memwal.ai": "dev",
+    }
+    return environment_by_server.get(normalized_url, configured_env)
+
+
 def get_doctor_namespace(doctor_id: str) -> str:
     """Derives isolated doctor namespace."""
     clean_id = (doctor_id or "").strip().replace("-", "_")
@@ -41,17 +51,19 @@ class WalrusClient:
         try:
             from memwal import MemWal
 
+            server_url = settings.WALRUS_SERVER_URL.strip().rstrip("/")
+            environment = _environment_for_server(server_url, settings.WALRUS_ENV)
             self._client = MemWal.create(
                 key=delegate_key,
                 account_id=account_id,
-                server_url=settings.WALRUS_SERVER_URL,
-                env=settings.WALRUS_ENV,
+                server_url=server_url,
+                env=environment,
             )
         except Exception as exc:
             logger.exception("Failed to initialize live MemWal client.")
             raise WalrusUnavailableError("Live Walrus memory initialization failed.") from exc
 
-        logger.info("Initialized MemWal client for the %s relayer.", settings.WALRUS_ENV)
+        logger.info("Initialized MemWal client for the %s relayer.", environment)
 
     async def remember(self, content: str, doctor_id: str) -> bool:
         """Commits clinical content or memory delta to the physician's memory namespace."""

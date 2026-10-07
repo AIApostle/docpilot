@@ -87,7 +87,12 @@ class TelegramClient:
             logger.error("Failed to send Telegram message to chat %s: %s", chat_id, exc)
             return False
 
-    async def set_webhook(self, webhook_url: str, secret_token: Optional[str] = None) -> bool:
+    async def set_webhook(
+        self,
+        webhook_url: str,
+        secret_token: Optional[str] = None,
+        allowed_updates: Optional[list[str]] = None,
+    ) -> bool:
         """Sets the Telegram bot webhook URL."""
         if not self.is_configured:
             return False
@@ -96,6 +101,8 @@ class TelegramClient:
         payload: Dict[str, Any] = {"url": webhook_url}
         if secret_token:
             payload["secret_token"] = secret_token
+        if allowed_updates:
+            payload["allowed_updates"] = allowed_updates
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -105,6 +112,36 @@ class TelegramClient:
         except Exception as exc:
             logger.error("Failed to set Telegram webhook to %s: %s", webhook_url, exc)
             return False
+
+
+async def configure_telegram_webhook() -> bool:
+    """Register the configured webhook, refusing incomplete/unsafe configuration."""
+    webhook_url = settings.TELEGRAM_WEBHOOK_URL.strip()
+    secret_token = settings.TELEGRAM_SECRET_TOKEN.strip()
+    if not webhook_url or not secret_token or not telegram_client.is_configured:
+        logger.warning(
+            "Telegram webhook is not configured; set TELEGRAM_BOT_TOKEN, "
+            "TELEGRAM_WEBHOOK_URL, and TELEGRAM_SECRET_TOKEN on the backend host."
+        )
+        return False
+
+    if not webhook_url.startswith("https://"):
+        logger.error("Telegram webhook URL must use HTTPS.")
+        return False
+    if not 1 <= len(secret_token) <= 256:
+        logger.error("Telegram webhook secret must be between 1 and 256 characters.")
+        return False
+
+    configured = await telegram_client.set_webhook(
+        webhook_url=webhook_url,
+        secret_token=secret_token,
+        allowed_updates=["message", "edited_message"],
+    )
+    if configured:
+        logger.info("Telegram webhook registered for %s.", webhook_url)
+    else:
+        logger.error("Telegram Bot API rejected webhook registration for %s.", webhook_url)
+    return configured
 
 
 telegram_client = TelegramClient()
