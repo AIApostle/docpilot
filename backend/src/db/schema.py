@@ -12,6 +12,7 @@ async def verify_database_schema() -> bool:
         supabase = await get_supabase_client()
         # Verify access to key tables
         await supabase.table("doctors").select("id").limit(1).execute()
+        await supabase.table("telegram_connections").select("id").limit(1).execute()
         await supabase.table("chat_sessions").select("id").limit(1).execute()
         await supabase.table("docpilot_chat_messages").select("id").limit(1).execute()
         logger.info("DocPilot database schema verification succeeded.")

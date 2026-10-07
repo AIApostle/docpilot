@@ -31,11 +31,18 @@ async def connect_telegram(
     request: TelegramConnectRequest,
     current_doctor: TokenPayload = Depends(get_current_doctor),
 ) -> TelegramConnectResponse:
-    res = await upsert_telegram_connection(
-        doctor_id=current_doctor.sub,
-        telegram_user_id=request.telegram_user_id,
-        telegram_username=request.telegram_username,
-    )
+    try:
+        res = await upsert_telegram_connection(
+            doctor_id=current_doctor.sub,
+            telegram_user_id=request.telegram_user_id,
+            telegram_username=request.telegram_username,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
     if not res:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

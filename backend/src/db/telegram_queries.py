@@ -10,7 +10,7 @@ TABLE_NAME = "telegram_connections"
 
 
 async def get_connection_by_telegram_id(telegram_user_id: int) -> Optional[Dict[str, Any]]:
-    """Retrieves an active Telegram connection mapped to a physician by Telegram user ID."""
+    """Retrieves the active Telegram connection mapped to a physician by Telegram user ID."""
     supabase = await get_supabase_client()
     try:
         res = (
@@ -50,7 +50,7 @@ async def upsert_telegram_connection(
     telegram_user_id: int,
     telegram_username: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Links or updates a Telegram user ID to a physician account."""
+    """Links a doctor to exactly one Telegram user and prevents cross-tenant re-use."""
     supabase = await get_supabase_client()
     record_id = f"tg_{uuid.uuid4().hex[:12]}"
     data = {
@@ -61,9 +61,27 @@ async def upsert_telegram_connection(
         "is_active": True,
     }
     try:
-        # Check if record already exists for this doctor or telegram user
-        existing = await get_connection_by_doctor_id(doctor_id)
-        if existing:
+        doctor_connection = await get_connection_by_doctor_id(doctor_id)
+        telegram_connection = await get_connection_by_telegram_id(telegram_user_id)
+
+        if telegram_connection and telegram_connection.get("doctor_id") != doctor_id:
+            raise ValueError(
+                f"Telegram user {telegram_user_id} is already linked to doctor {telegram_connection.get('doctor_id')}."
+            )
+
+        if doctor_connection:
+            if doctor_connection.get("telegram_user_id") == telegram_user_id:
+                res = (
+                    await supabase.table(TABLE_NAME)
+                    .update({
+                        "telegram_username": telegram_username,
+                        "is_active": True,
+                    })
+                    .eq("doctor_id", doctor_id)
+                    .execute()
+                )
+                return res.data[0] if (res and res.data) else doctor_connection
+
             res = (
                 await supabase.table(TABLE_NAME)
                 .update({
@@ -78,6 +96,9 @@ async def upsert_telegram_connection(
 
         res = await supabase.table(TABLE_NAME).insert(data).execute()
         return res.data[0] if (res and res.data) else None
+    except ValueError as exc:
+        logger.warning("Telegram connection conflict for doctor %s: %s", doctor_id, exc)
+        raise
     except Exception as exc:
         logger.error("Failed to upsert telegram connection for doctor %s: %s", doctor_id, exc)
         return None

@@ -42,6 +42,33 @@ async def get_doctor_by_email(email: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+async def create_doctor(
+    doctor_id: str,
+    email: str,
+    full_name: Optional[str] = None,
+    hashed_password: str = "[MANAGED_BY_SUPABASE_AUTH]",
+) -> Optional[Dict[str, Any]]:
+    """Inserts a new doctor record into the public.doctors table.
+    
+    Raises exception on duplicate key/unique constraint violations.
+    """
+    supabase = await get_supabase_client()
+    data = {
+        "id": doctor_id,
+        "email": email.strip().lower(),
+        "hashed_password": hashed_password,
+    }
+    if full_name is not None:
+        data["full_name"] = full_name.strip()
+
+    try:
+        res = await supabase.table(TABLE_NAME).insert(data).execute()
+        return res.data[0] if (res and res.data) else None
+    except Exception as exc:
+        logger.error("Failed to insert doctor '%s': %s", doctor_id, exc)
+        raise exc
+
+
 async def upsert_doctor(
     doctor_id: str,
     email: str,
