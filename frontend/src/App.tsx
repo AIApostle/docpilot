@@ -226,7 +226,7 @@ function App() {
         content: result.reply,
         createdAt: result.updatedAt ?? new Date().toISOString(),
       }
-      const title = result.title || previousConversation?.title || messageText.replace(/\s+/g, ' ').slice(0, 72)
+      const title = previousConversation?.title || result.title || messageText.replace(/\s+/g, ' ').slice(0, 72)
       const conversation: ChatDetail = {
         id: result.id,
         title,

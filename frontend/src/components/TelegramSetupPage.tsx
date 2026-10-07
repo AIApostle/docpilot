@@ -87,43 +87,81 @@ export function TelegramSetupPage({
 
         <section className="telegram-layout">
           <div className="telegram-intro">
-            <div className="empty-page-mark" aria-hidden="true">
-              <Icon name="book" size={22} />
+            <div className="telegram-intro-mark" aria-hidden="true">
+              <Icon name="send" size={23} />
             </div>
             <div className="telegram-copy">
-              <p className="telegram-kicker">Clinical messaging</p>
-              <h1>Connect your Telegram account</h1>
+              <h1>Your workflow, now on Telegram.</h1>
               <p>
-                Sign in with Telegram to link your account to DocPilot. Messages sent to the bot then use the same doctor identity and memory scope as this workspace.
+                Link the Telegram account you use for work. Messages sent to your DocPilot bot use the same doctor identity and memory scope as this workspace.
               </p>
             </div>
+            <p className="telegram-trust-note">
+              <Icon name="lock" size={17} />
+              Telegram verifies your account before DocPilot links it to this workspace.
+            </p>
           </div>
 
-          <div className="telegram-connect-column">
-            {error && <div className="form-alert" role="alert"><span>{error}</span></div>}
-            {success && <div className="inline-alert success-alert" role="status"><span>{success}</span></div>}
-            {widgetError && <p className="form-alert" role="alert">{widgetError}</p>}
+          <section aria-labelledby="telegram-connect-title" className="telegram-connect-panel">
+            <div className="telegram-panel-heading">
+              <h2 id="telegram-connect-title">Link your account</h2>
+              <p>Two quick steps, then you can message your bot.</p>
+            </div>
 
-            {!widgetError && !botUsername && <p role="status">Loading Telegram sign-in…</p>}
-            <div aria-label="Sign in with Telegram" className="telegram-widget-mount" ref={widgetRef} />
+            {error && <div className="form-alert telegram-alert" role="alert"><span>{error}</span></div>}
+            {success && <div className="inline-alert success-alert telegram-alert" role="status"><span>{success}</span></div>}
+            {widgetError && <p className="form-alert telegram-alert" role="alert">{widgetError}</p>}
 
-            <div className="telegram-actions">
-              {botUsername && (
-                <a className="button-primary telegram-open-bot" href={`https://t.me/${botUsername}`} rel="noreferrer" target="_blank">
-                  Open @{botUsername} in Telegram
-                  <Icon name="arrow" size={16} />
-                </a>
-              )}
+            <ol aria-label="Connect Telegram in two steps" className="telegram-steps">
+              <li>
+                <span aria-hidden="true" className="telegram-step-number">1</span>
+                <div className="telegram-step-content">
+                  <h3>Verify your Telegram account</h3>
+                  <p>Use Telegram’s sign-in button to securely link this workspace.</p>
+                  {!widgetError && !botUsername && (
+                    <p className="telegram-widget-loading" role="status">Loading Telegram sign-in…</p>
+                  )}
+                  <div
+                    aria-busy={busy}
+                    aria-label="Sign in with Telegram"
+                    className="telegram-widget-mount"
+                    ref={widgetRef}
+                    role="group"
+                  />
+                  {busy && <p className="telegram-linking" role="status">Linking your account…</p>}
+                </div>
+              </li>
+              <li>
+                <span aria-hidden="true" className="telegram-step-number">2</span>
+                <div className="telegram-step-content">
+                  <h3>Open your DocPilot bot</h3>
+                  <p>Once linked, open the bot to start a conversation.</p>
+                  {botUsername && (
+                    <a
+                      className="button-primary telegram-open-bot"
+                      href={`https://t.me/${botUsername}`}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Open @{botUsername} in Telegram
+                      <Icon name="arrow" size={16} />
+                    </a>
+                  )}
+                </div>
+              </li>
+            </ol>
+
+            <div className="telegram-panel-footer">
               <button
                 className="text-button telegram-disconnect"
                 disabled={busy}
                 onClick={() => void onDisconnect()}
                 type="button"
               >
-                Disconnect
+                Disconnect Telegram
               </button>
             </div>
-          </div>
+          </section>
         </section>
       </div>
     </main>

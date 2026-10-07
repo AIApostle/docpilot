@@ -56,9 +56,9 @@ export function ChatWorkspace({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedId = route.kind === 'chat' ? route.id : undefined
   const isNew = route.kind === 'new'
-  const conversationTitle = activeConversation?.title || (
-    selectedId ? 'Conversation' : 'New conversation'
-  )
+  const conversationTitle = selectedId && activeConversation?.messages.length
+    ? activeConversation.title || 'Conversation'
+    : undefined
   const messages = activeConversation?.messages ?? []
 
   useEffect(() => {
@@ -92,7 +92,7 @@ export function ChatWorkspace({
             <Icon name="menu" size={20} />
           </button>
           <div className="workspace-title-wrap">
-            <h1>{conversationTitle}</h1>
+            {conversationTitle && <h1>{conversationTitle}</h1>}
             <p>
               {previewMode
                 ? 'Development preview · messages are read only.'
