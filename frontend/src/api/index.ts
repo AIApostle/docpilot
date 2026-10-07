@@ -3,6 +3,7 @@ export { getChat, getChats, sendChatMessage } from './chats'
 export { connectTelegram, disconnectTelegram } from './telegram'
 export { ApiError } from './client'
 export type {
+  ChatAttachment,
   ChatDetail,
   ChatMessage,
   ChatSummary,

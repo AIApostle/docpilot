@@ -49,6 +49,17 @@ def _format_message_dict(msg: Dict[str, Any]) -> Dict[str, Any]:
     if role in ("doctor", "physician"):
         role = "user"
     created = str(msg.get("created_at") or "")
+    attachments = []
+    for attachment in msg.get("attachments") or []:
+        if not isinstance(attachment, dict):
+            continue
+        metadata = {
+            key: attachment[key]
+            for key in ("filename", "file_type", "description")
+            if isinstance(attachment.get(key), str)
+        }
+        if metadata.get("filename") and metadata.get("file_type"):
+            attachments.append(metadata)
     return {
         "id": str(msg.get("id") or ""),
         "session_id": str(msg.get("session_id") or ""),
@@ -56,7 +67,7 @@ def _format_message_dict(msg: Dict[str, Any]) -> Dict[str, Any]:
         "content": str(msg.get("content") or ""),
         "created_at": created,
         "createdAt": created,
-        "attachments": msg.get("attachments") or [],
+        "attachments": attachments,
         "action_taken": msg.get("action_taken"),
         "entities_extracted": msg.get("entities_extracted") or [],
     }

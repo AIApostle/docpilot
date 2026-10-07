@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Brand } from './Brand'
 import { Icon } from './Icon'
@@ -12,6 +13,7 @@ interface AuthScreenProps {
 
 export function AuthScreen({ mode, busy, error, onNavigate, onSubmit }: AuthScreenProps) {
   const isRegister = mode === 'register'
+  const [showPassword, setShowPassword] = useState(false)
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -80,14 +82,26 @@ export function AuthScreen({ mode, busy, error, onNavigate, onSubmit }: AuthScre
             </label>
             <label className="field-label">
               Password
-              <input
-                autoComplete={isRegister ? 'new-password' : 'current-password'}
-                minLength={8}
-                name="password"
-                placeholder={isRegister ? 'At least 8 characters' : 'Your password'}
-                required
-                type="password"
-              />
+              <span className="password-input-wrap">
+                <input
+                  autoComplete={isRegister ? 'new-password' : 'current-password'}
+                  minLength={8}
+                  name="password"
+                  placeholder={isRegister ? 'At least 8 characters' : 'Your password'}
+                  required
+                  type={showPassword ? 'text' : 'password'}
+                />
+                <button
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  className="password-visibility-button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                  type="button"
+                >
+                  <Icon name={showPassword ? 'eyeOff' : 'eye'} size={19} />
+                </button>
+              </span>
             </label>
             <button className="button-primary auth-submit" disabled={busy} type="submit">
               {busy ? 'Please wait…' : isRegister ? 'Create account' : 'Sign in'}

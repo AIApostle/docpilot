@@ -10,7 +10,7 @@ import {
   register,
   sendChatMessage,
 } from './api'
-import type { ChatDetail, ChatMessage, ChatSummary } from './api'
+import type { ChatAttachment, ChatDetail, ChatMessage, ChatSummary } from './api'
 import { AuthScreen } from './components/AuthScreen'
 import { Brand } from './components/Brand'
 import { ChatWorkspace } from './components/ChatWorkspace'
@@ -188,19 +188,21 @@ function App() {
     }
   }
 
-  async function sendMessage(message: string) {
-    if (previewMode || sending || !message.trim()) return
+  async function sendMessage(message: string, attachments: ChatAttachment[] = []): Promise<boolean> {
+    if (previewMode || sending || (!message.trim() && attachments.length === 0)) return false
     const previousConversation = route.kind === 'chat' && activeConversation?.id === route.id
       ? activeConversation
       : null
-    if (route.kind === 'chat' && !previousConversation) return
+    if (route.kind === 'chat' && !previousConversation) return false
     const existingId = previousConversation?.id
     const now = new Date().toISOString()
+    const messageText = message.trim() || 'Attached files'
     const userMessage: ChatMessage = {
       id: `local-user-${Date.now()}`,
       role: 'user',
-      content: message.trim(),
+      content: messageText,
       createdAt: now,
+      attachments: attachments.map(({ filename, file_type }) => ({ filename, file_type })),
     }
 
     setSending(true)
@@ -217,14 +219,14 @@ function App() {
     }))
 
     try {
-      const result = await sendChatMessage(message.trim(), existingId)
+      const result = await sendChatMessage(messageText, existingId, attachments)
       const assistantMessage: ChatMessage = {
         id: `local-assistant-${Date.now()}`,
         role: 'assistant',
         content: result.reply,
         createdAt: result.updatedAt ?? new Date().toISOString(),
       }
-      const title = result.title || previousConversation?.title || message.trim().replace(/\s+/g, ' ').slice(0, 72)
+      const title = result.title || previousConversation?.title || messageText.replace(/\s+/g, ' ').slice(0, 72)
       const conversation: ChatDetail = {
         id: result.id,
         title,
@@ -240,10 +242,12 @@ function App() {
         navigate(`/chat/${encodeURIComponent(result.id)}`, false, true)
         setConversationLoading(false)
       }
+      return true
     } catch (error) {
       setActiveConversation(previousConversation)
       setDraft(message)
       setThreadError(errorText(error))
+      return false
     } finally {
       setSending(false)
     }

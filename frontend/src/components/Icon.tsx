@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export type IconName = 'book' | 'plus' | 'refresh' | 'chevron' | 'send' | 'menu' | 'close' | 'logout' | 'lock' | 'arrow'
+export type IconName = 'book' | 'plus' | 'refresh' | 'chevron' | 'send' | 'menu' | 'close' | 'logout' | 'lock' | 'arrow' | 'eye' | 'eyeOff' | 'paperclip'
 
 const iconPaths: Record<IconName, ReactNode> = {
   book: (
@@ -38,6 +38,19 @@ const iconPaths: Record<IconName, ReactNode> = {
     </>
   ),
   arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
+  eye: (
+    <>
+      <path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </>
+  ),
+  eyeOff: (
+    <>
+      <path d="m3 3 18 18M10.6 6.2A10.8 10.8 0 0 1 12 6c6.2 0 9.5 6 9.5 6a14.5 14.5 0 0 1-3 3.6M6.2 6.3C3.8 7.8 2.5 12 2.5 12s3.3 6 9.5 6c1.1 0 2.1-.2 3-.5" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </>
+  ),
+  paperclip: <path d="m8 12.5 6.8-6.8a3 3 0 0 1 4.2 4.2l-8.5 8.5a5 5 0 0 1-7.1-7.1l8.1-8.1" />,
 }
 
 export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {

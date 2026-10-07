@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from supabase import AsyncClient
 from supabase_auth.errors import AuthApiError, AuthError
 
-from client.supabase_client import get_supabase_client
+from client.supabase_client import get_supabase_admin_client, get_supabase_client
 from db.doctors_queries import create_doctor, get_doctor_by_email
 from schemas.signup import SignupRequest, SignupResponse
 
@@ -46,79 +46,43 @@ async def signup_doctor(
         )
 
     supabase = client or await get_supabase_client()
-
-    # 2. Pre-check: Verify email does not exist in Supabase Auth via admin directory
-    try:
-        if hasattr(supabase.auth, "admin") and hasattr(supabase.auth.admin, "list_users"):
-            admin_users = await supabase.auth.admin.list_users()
-            if admin_users:
-                for u in admin_users:
-                    if getattr(u, "email", "").strip().lower() == normalized_email:
-                        logger.warning(
-                            "Registration rejected: email '%s' already exists in Supabase Auth users.",
-                            normalized_email,
-                        )
-                        raise HTTPException(
-                            status_code=status.HTTP_409_CONFLICT,
-                            detail="A physician account with this email address already exists. Please log in instead.",
-                        )
-    except HTTPException:
-        raise
-    except Exception as admin_err:
-        logger.debug("Admin list_users pre-check bypassed: %s", admin_err)
+    admin_supabase = client or await get_supabase_admin_client()
 
     try:
-        # 3. Register user with Supabase Auth
-        auth_response = await supabase.auth.sign_up({
+        create_response = await admin_supabase.auth.admin.create_user({
             "email": normalized_email,
             "password": request.password,
-            "options": {
-                "data": {
-                    "full_name": request.full_name,
-                    "role": "doctor",
-                }
+            "email_confirm": True,
+            "user_metadata": {
+                "full_name": request.full_name,
+                "role": "doctor",
             },
         })
 
-        if not auth_response.user:
-            logger.error("Supabase sign_up completed without returning a user object.")
+        if not create_response.user:
+            logger.error("Supabase admin create_user completed without returning a user object.")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Registration could not be completed with the identity provider.",
             )
 
-        # 4. Check for existing identity in Supabase Auth
-        # When an email already exists and email confirmations are active,
-        # Supabase Auth returns a dummy user with empty identities list ([]).
-        identities = getattr(auth_response.user, "identities", None)
-        if identities is not None and len(identities) == 0:
-            logger.warning(
-                "Registration rejected: Supabase Auth returned empty identities for '%s' (account already exists).",
-                normalized_email,
-            )
+        auth_response = await supabase.auth.sign_in_with_password({
+            "email": normalized_email,
+            "password": request.password,
+        })
+        if not auth_response.session:
+            logger.error("Supabase confirmed account creation but returned no sign-in session.")
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A physician account with this email address already exists. Please log in instead.",
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Account was created, but sign-in could not be completed. Please try signing in.",
             )
 
-        doctor_id = auth_response.user.id
-        email = auth_response.user.email or normalized_email
+        doctor_id = create_response.user.id
+        email = create_response.user.email or normalized_email
         full_name = request.full_name
 
-        # Session token (available immediately if email auto-confirm is enabled in Supabase,
-        # otherwise generate an application access token for initial onboarding)
-        if auth_response.session:
-            access_token = auth_response.session.access_token
-            token_type = auth_response.session.token_type or "bearer"
-        else:
-            from .jwt import create_access_token
-            access_token = create_access_token({
-                "sub": doctor_id,
-                "email": email,
-                "full_name": full_name,
-                "role": "doctor",
-            })
-            token_type = "bearer"
+        access_token = auth_response.session.access_token
+        token_type = auth_response.session.token_type or "bearer"
 
         # 5. Persist to public.doctors table enforcing unique email constraint
         try:

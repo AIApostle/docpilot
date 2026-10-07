@@ -9,6 +9,14 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   createdAt?: string
+  attachments?: ChatAttachment[]
+}
+
+export interface ChatAttachment {
+  filename: string
+  file_type: string
+  content_base64?: string
+  description?: string
 }
 
 export interface ChatDetail extends ChatSummary {
