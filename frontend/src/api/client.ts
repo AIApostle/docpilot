@@ -2,7 +2,7 @@ type JsonObject = Record<string, unknown>
 
 const apiBaseUrl = (
   import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? 'http://localhost:8000' : '')
+  (import.meta.env.DEV ? 'http://localhost:8000' : '/api')
 ).trim().replace(/\/+$/, '')
 
 export class ApiError extends Error {
