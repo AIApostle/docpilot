@@ -4,6 +4,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://docpilot-yxh9.onrender.com/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
