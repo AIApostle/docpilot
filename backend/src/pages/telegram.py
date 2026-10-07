@@ -1,6 +1,7 @@
 """Telegram Bot integration endpoints for DocPilot."""
 
 import logging
+import secrets
 from typing import Any, Dict
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
@@ -77,11 +78,15 @@ async def telegram_webhook(
     update: Dict[str, Any],
     x_telegram_bot_api_secret_token: str = Header(default=""),
 ) -> Dict[str, bool]:
-    # Secret token verification if configured
-    if settings.TELEGRAM_SECRET_TOKEN:
-        if x_telegram_bot_api_secret_token != settings.TELEGRAM_SECRET_TOKEN:
-            logger.warning("Rejected Telegram webhook with invalid secret token.")
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid secret token.")
+    if not settings.TELEGRAM_SECRET_TOKEN:
+        logger.error("Telegram webhook secret is not configured.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram webhook secret is not configured.",
+        )
+    if not secrets.compare_digest(x_telegram_bot_api_secret_token, settings.TELEGRAM_SECRET_TOKEN):
+        logger.warning("Rejected Telegram webhook with invalid secret token.")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid secret token.")
 
     message_data = update.get("message") or update.get("edited_message")
     if not message_data:

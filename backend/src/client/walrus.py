@@ -16,40 +16,38 @@ def get_doctor_namespace(doctor_id: str) -> str:
 
 
 class WalrusClient:
-    """Encapsulates interaction with Walrus Memory (MemWal or MemWalMock)."""
+    """Encapsulates interaction with the persistent MemWal service."""
 
     def __init__(self):
         self._client: Optional[Any] = None
-        self._is_mock: bool = False
 
     async def initialize(self) -> None:
-        """Initializes either the live MemWal client or the MemWalMock fallback."""
+        """Initializes the live persistent MemWal client."""
         if self._client is not None:
             return
 
         delegate_key = settings.WALRUS_DELEGATE_KEY.strip()
         account_id = settings.WALRUS_ACCOUNT_ID.strip()
 
-        if delegate_key and account_id and settings.WALRUS_ENABLED:
-            try:
-                from memwal import ENV_PRESETS, MemWal
-                env = ENV_PRESETS.get(settings.WALRUS_ENV, ENV_PRESETS["dev"])
-                self._client = await MemWal.create(
-                    key=delegate_key,
-                    account_id=account_id,
-                    server_url=settings.WALRUS_SERVER_URL,
-                    env=env,
-                )
-                self._is_mock = False
-                logger.info("Connected to live Walrus Memory relayer (%s).", settings.WALRUS_ENV)
-                return
-            except Exception as exc:
-                logger.warning("Failed to initialize live MemWal client (%s). Falling back to MemWalMock.", exc)
+        if not settings.WALRUS_ENABLED:
+            raise RuntimeError("Walrus memory is disabled; refusing to use non-persistent memory.")
+        if not delegate_key or not account_id:
+            raise RuntimeError("Walrus memory requires WALRUS_DELEGATE_KEY and WALRUS_ACCOUNT_ID.")
 
-        from memwal import MemWalMock
-        self._client = MemWalMock()
-        self._is_mock = True
-        logger.info("Initialized in-memory MemWalMock for clinical memory.")
+        try:
+            from memwal import MemWal
+
+            self._client = MemWal.create(
+                key=delegate_key,
+                account_id=account_id,
+                server_url=settings.WALRUS_SERVER_URL,
+                env=settings.WALRUS_ENV,
+            )
+        except Exception as exc:
+            logger.exception("Failed to initialize live MemWal client.")
+            raise RuntimeError("Live Walrus memory initialization failed.") from exc
+
+        logger.info("Connected to live Walrus Memory relayer (%s).", settings.WALRUS_ENV)
 
     async def remember(self, content: str, doctor_id: str) -> bool:
         """Commits clinical content or memory delta to the physician's memory namespace."""
@@ -58,12 +56,16 @@ class WalrusClient:
         await self.initialize()
         namespace = get_doctor_namespace(doctor_id)
         try:
-            await self._client.remember(content.strip(), namespace=namespace)
+            await self._client.remember_and_wait(
+                content.strip(),
+                namespace=namespace,
+                timeout_ms=60_000,
+            )
             logger.info("Committed clinical memory delta to namespace %s.", namespace)
             return True
         except Exception as exc:
-            logger.error("Failed to commit memory to Walrus (%s): %s", namespace, exc)
-            return False
+            logger.exception("Failed to commit memory to Walrus namespace %s.", namespace)
+            raise RuntimeError("Failed to persist clinical memory to Walrus.") from exc
 
     async def recall(
         self,
@@ -94,8 +96,8 @@ class WalrusClient:
             logger.info("Recalled %d memories for doctor %s.", len(recalled_texts), doctor_id)
             return recalled_texts
         except Exception as exc:
-            logger.error("Failed to recall memories from Walrus (%s): %s", namespace, exc)
-            return []
+            logger.exception("Failed to recall memories from Walrus namespace %s.", namespace)
+            raise RuntimeError("Failed to recall clinical memory from Walrus.") from exc
 
 
 async def get_walrus_client() -> WalrusClient:
