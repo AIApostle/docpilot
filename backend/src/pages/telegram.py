@@ -14,6 +14,7 @@ from db.telegram_queries import (
     get_connection_by_telegram_id,
     upsert_telegram_connection,
 )
+from db.doctor_memory_preferences_queries import DoctorMemoryPreferenceError, get_doctor_memory_enabled
 from schemas.telegram import TelegramConnectRequest, TelegramConnectResponse, TelegramWidgetConfig
 from schemas.token import TokenPayload
 
@@ -143,11 +144,25 @@ async def telegram_webhook(
 
     doctor_id = conn["doctor_id"]
 
+    try:
+        memory_enabled = await get_doctor_memory_enabled(doctor_id)
+    except DoctorMemoryPreferenceError:
+        logger.error("Could not load MemWal preference for Telegram doctor %s.", doctor_id)
+        await telegram_client.send_message(
+            chat_id=chat_id,
+            text="DocPilot could not check your memory setting. No message was processed; please try again later.",
+        )
+        return {"ok": True}
+
     # Handle standard bot commands
     if text.startswith("/start"):
         await telegram_client.send_message(
             chat_id=chat_id,
-            text="👋 *DocPilot is active.*\nSend clinical notes, patient updates, or queries. All memories are private to your practice.",
+            text=(
+                "👋 *DocPilot is active.*\n"
+                "Send clinical notes, patient updates, or queries.\n"
+                f"MemWal memory is {'on' if memory_enabled else 'off'} for your account."
+            ),
         )
         return {"ok": True}
 
@@ -156,6 +171,7 @@ async def telegram_webhook(
         reply_text, action, entities, _ = await docpilot_agent.process(
             doctor_id=doctor_id,
             message=text,
+            memory_enabled=memory_enabled,
         )
         await telegram_client.send_message(chat_id=chat_id, text=reply_text)
     except Exception as exc:

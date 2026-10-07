@@ -15,6 +15,7 @@ async def verify_database_schema() -> bool:
         await supabase.table("telegram_connections").select("id").limit(1).execute()
         await supabase.table("chat_sessions").select("id").limit(1).execute()
         await supabase.table("docpilot_chat_messages").select("id").limit(1).execute()
+        await supabase.table("doctor_memory_preferences").select("doctor_id").limit(1).execute()
         logger.info("DocPilot database schema verification succeeded.")
         return True
     except Exception as exc:

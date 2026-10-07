@@ -19,6 +19,7 @@ from db.chat_sessions_queries import (
     list_chat_sessions,
     update_chat_session,
 )
+from db.doctor_memory_preferences_queries import DoctorMemoryPreferenceError, get_doctor_memory_enabled
 from schemas.chat import ChatRequest
 from schemas.chat_session import ChatSessionCreate, ChatSessionResponse
 from schemas.token import TokenPayload
@@ -168,13 +169,22 @@ async def get_session_messages_alias(
     response_model=Dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Send clinical note or query",
-    description="Ingests a clinical note or question, recalls memories, reasons with LLM, and consolidates memory.",
+    description="Processes a clinical note or question using the authenticated doctor's MemWal setting.",
 )
 async def send_message(
     payload: ChatRequest,
     current_doctor: TokenPayload = Depends(get_current_doctor),
 ) -> Dict[str, Any]:
     doctor_id = current_doctor.sub
+    try:
+        memory_enabled = await get_doctor_memory_enabled(doctor_id)
+    except DoctorMemoryPreferenceError as exc:
+        logger.error("Could not load MemWal preference for doctor %s.", doctor_id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Memory settings are temporarily unavailable. Please retry.",
+        ) from exc
+
     session_id = payload.resolved_session_id()
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -200,24 +210,14 @@ async def send_message(
             )
         session_id = session["id"]
 
-    # 2. Fetch recent conversation turns for context
-    past_messages = await list_messages_by_session_id(
-        session_id=session_id,
-        doctor_id=doctor_id,
-        limit=6,
-    )
-    history_turns = [
-        {"role": "user" if m.get("role") in ("doctor", "user") else "assistant", "content": m.get("content", "")}
-        for m in past_messages
-    ]
-
     raw_attachments = [a.model_dump() for a in payload.attachments] if payload.attachments else []
-    # Execute memory recall and reasoning before recording a successful turn.
+    # The transcript is stored for the doctor's UI, but never fed to the model.
+    # MemWal is the only memory source used for model context.
     try:
         response_text, action_taken, entities, suggested_title = await docpilot_agent.process(
             doctor_id=doctor_id,
             message=payload.message,
-            conversation_history=history_turns,
+            memory_enabled=memory_enabled,
         )
     except WalrusUnavailableError as exc:
         logger.error("Persistent Walrus memory unavailable for doctor %s.", doctor_id)
@@ -227,10 +227,7 @@ async def send_message(
         ) from exc
     except Exception as exc:
         logger.error("DocPilot Agent processing error: %s", exc)
-        response_text = (
-            "I have documented your note in the record. "
-            "(Clinical reasoning service temporarily experienced high latency)."
-        )
+        response_text = "I couldn't complete that request. Please try again."
         action_taken = "conversational"
         entities = []
         suggested_title = None
@@ -256,7 +253,7 @@ async def send_message(
 
     # 6. Update session title and message count
     updated_title = suggested_title or session.get("title")
-    curr_count = int(session.get("message_count") or len(past_messages)) + 2
+    curr_count = int(session.get("message_count") or 0) + 2
     await update_chat_session(
         session_id=session_id,
         doctor_id=doctor_id,
@@ -275,6 +272,7 @@ async def send_message(
         "entities_extracted": entities_dump,
         "updated_at": now_iso,
         "updatedAt": now_iso,
+        "memory_enabled": memory_enabled,
     }
 
 

@@ -69,6 +69,8 @@ export const ui = {
   workspaceTitle: 'min-w-0 flex-1',
   workspaceTitleText: 'overflow-hidden text-ellipsis whitespace-nowrap text-lg font-semibold',
   workspaceSubtitle: 'overflow-hidden text-ellipsis whitespace-nowrap text-sm text-ink-quiet max-[700px]:text-xs',
+  memoryBanner: 'flex items-center justify-between gap-4 border-b border-green/20 bg-green-wash px-[clamp(16px,4.5vw,72px)] py-3 max-[700px]:px-4',
+  memorySwitch: 'relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
   mobileMenu: 'hidden max-[700px]:grid',
   headerNew: 'hidden min-h-10 items-center gap-2 rounded-lg border border-line px-3 font-semibold text-green-deep hover:bg-green-wash min-[1100px]:inline-flex max-[700px]:inline-flex',
   conversationPanel: 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-[clamp(24px,8vw,120px)] py-8 max-[700px]:overflow-visible max-[700px]:px-5 max-[700px]:py-6',

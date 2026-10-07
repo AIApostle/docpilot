@@ -30,6 +30,10 @@ export interface SendMessageResult {
   reply: string
 }
 
+export interface MemoryPreference {
+  enabled: boolean
+}
+
 export interface DoctorSummary {
   id: string
   email: string

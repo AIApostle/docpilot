@@ -17,6 +17,7 @@ from client.telegram import configure_telegram_webhook
 from db.schema import verify_database_schema
 from pages.auth import router as auth_router
 from pages.chat import router as chat_router
+from pages.memory import router as memory_router
 from pages.telegram import router as telegram_router
 
 logging.basicConfig(
@@ -94,6 +95,7 @@ async def root():
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(chat_router, prefix="/chat", tags=["Consultations"])
 app.include_router(chat_router, prefix="/chats", tags=["Consultations (Frontend Alias)"], include_in_schema=False)
+app.include_router(memory_router, prefix="/memory", tags=["Memory Settings"])
 app.include_router(telegram_router, prefix="/telegram", tags=["Telegram Bot"])
 
 

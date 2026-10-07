@@ -6,10 +6,12 @@ import {
   disconnectTelegram,
   getChat,
   getChats,
+  getMemoryPreference,
   login,
   logout,
   register,
   sendChatMessage,
+  updateMemoryPreference,
 } from './api'
 import type { ChatAttachment, ChatDetail, ChatMessage, ChatSummary, TelegramConnectPayload } from './api'
 import { AuthScreen } from './components/AuthScreen'
@@ -54,6 +56,9 @@ function App() {
   const [historyError, setHistoryError] = useState('')
   const [historyBusy, setHistoryBusy] = useState(false)
   const [sending, setSending] = useState(false)
+  const [memoryEnabled, setMemoryEnabled] = useState<boolean | null>(null)
+  const [memoryBusy, setMemoryBusy] = useState(false)
+  const [memoryError, setMemoryError] = useState('')
   const [draft, setDraft] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [logoutError, setLogoutError] = useState('')
@@ -91,8 +96,9 @@ function App() {
 
   async function loadSession() {
     try {
-      const chats = await getChats()
+      const [chats, memoryPreference] = await Promise.all([getChats(), getMemoryPreference()])
       setHistory(chats)
+      setMemoryEnabled(memoryPreference.enabled)
       setSessionState('authenticated')
       if (resolveRoute(window.location.pathname).kind === 'missing') navigate('/new', true, true)
     } catch (error) {
@@ -111,10 +117,11 @@ function App() {
     if (initialRoute.kind === 'login' || initialRoute.kind === 'register' || isDemoRoute(initialRoute)) return
 
     let cancelled = false
-    void getChats()
-      .then((chats) => {
+    void Promise.all([getChats(), getMemoryPreference()])
+      .then(([chats, memoryPreference]) => {
         if (cancelled) return
         setHistory(chats)
+        setMemoryEnabled(memoryPreference.enabled)
         setSessionState('authenticated')
         if (resolveRoute(window.location.pathname).kind === 'missing') navigate('/new', true, true)
       })
@@ -170,8 +177,9 @@ function App() {
         await login(credentials)
         toast.success('Welcome back.')
       }
-      const chats = await getChats()
+      const [chats, memoryPreference] = await Promise.all([getChats(), getMemoryPreference()])
       setHistory(chats)
+      setMemoryEnabled(memoryPreference.enabled)
       setSessionState('authenticated')
       setDraft('')
       navigate('/new', false, true)
@@ -260,6 +268,20 @@ function App() {
     }
   }
 
+  async function handleMemoryToggle() {
+    if (memoryEnabled === null || memoryBusy || sending) return
+    setMemoryBusy(true)
+    setMemoryError('')
+    try {
+      const preference = await updateMemoryPreference(!memoryEnabled)
+      setMemoryEnabled(preference.enabled)
+    } catch (error) {
+      setMemoryError(errorText(error))
+    } finally {
+      setMemoryBusy(false)
+    }
+  }
+
   async function handleLogout() {
     setLogoutError('')
     try {
@@ -268,6 +290,8 @@ function App() {
       setHistory([])
       setActiveConversation(null)
       setDraft('')
+      setMemoryEnabled(null)
+      setMemoryError('')
       navigate('/login', false, true)
     } catch (error) {
       setLogoutError(errorText(error))
@@ -325,7 +349,7 @@ function App() {
     return (
       <main className={`${ui.sessionScreen} content-start pt-16`}>
         <Brand />
-        <h1>We couldn’t open your memory.</h1>
+        <h1>We couldn’t load your workspace.</h1>
         <p role="alert">{sessionError}</p>
         <button
           className={`${ui.primaryButton} mt-2`}
@@ -379,12 +403,16 @@ function App() {
         chats={history}
         draft={draft}
         historyError={historyError}
+        memoryEnabled={memoryEnabled ?? true}
+        memoryBusy={memoryBusy}
+        memoryError={memoryError}
         menuOpen={menuOpen}
         onCloseMenu={() => setMenuOpen(false)}
         onDismissThreadError={() => setThreadError('')}
         onDraftChange={setDraft}
         onLogout={() => void handleLogout()}
         onMenu={() => setMenuOpen(true)}
+        onToggleMemory={() => void handleMemoryToggle()}
         onNew={() => {
           setThreadError('')
           setDraft('')

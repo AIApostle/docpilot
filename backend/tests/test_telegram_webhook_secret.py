@@ -40,6 +40,10 @@ async def test_linked_telegram_message_uses_linked_doctor_memory_identity(monkey
         assert telegram_user_id == 987654
         return {"doctor_id": "doctor-123"}
 
+    async def get_memory_enabled(doctor_id):
+        assert doctor_id == "doctor-123"
+        return True
+
     async def process(**kwargs):
         processed.append(kwargs)
         return "Saved for this doctor.", "update_memory", [], None
@@ -49,6 +53,7 @@ async def test_linked_telegram_message_uses_linked_doctor_memory_identity(monkey
 
     monkeypatch.setattr(telegram_module.settings, "TELEGRAM_SECRET_TOKEN", "expected-secret")
     monkeypatch.setattr(telegram_module, "get_connection_by_telegram_id", get_connection)
+    monkeypatch.setattr(telegram_module, "get_doctor_memory_enabled", get_memory_enabled)
     monkeypatch.setattr(telegram_module.docpilot_agent, "process", process)
     monkeypatch.setattr(telegram_module.telegram_client, "send_message", send_message)
 
@@ -65,6 +70,7 @@ async def test_linked_telegram_message_uses_linked_doctor_memory_identity(monkey
 
     assert response == {"ok": True}
     assert processed[0]["doctor_id"] == "doctor-123"
+    assert processed[0]["memory_enabled"] is True
 
 
 @pytest.mark.asyncio
