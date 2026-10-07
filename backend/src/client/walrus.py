@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 _walrus_instance: Optional[Any] = None
 
 
+class WalrusUnavailableError(RuntimeError):
+    """Raised when persistent Walrus memory cannot initialize or serve a request."""
+
+
 def get_doctor_namespace(doctor_id: str) -> str:
     """Derives isolated doctor namespace."""
     clean_id = (doctor_id or "").strip().replace("-", "_")
@@ -30,9 +34,9 @@ class WalrusClient:
         account_id = settings.WALRUS_ACCOUNT_ID.strip()
 
         if not settings.WALRUS_ENABLED:
-            raise RuntimeError("Walrus memory is disabled; refusing to use non-persistent memory.")
+            raise WalrusUnavailableError("Walrus memory is disabled; refusing to use non-persistent memory.")
         if not delegate_key or not account_id:
-            raise RuntimeError("Walrus memory requires WALRUS_DELEGATE_KEY and WALRUS_ACCOUNT_ID.")
+            raise WalrusUnavailableError("Walrus memory requires WALRUS_DELEGATE_KEY and WALRUS_ACCOUNT_ID.")
 
         try:
             from memwal import MemWal
@@ -45,9 +49,9 @@ class WalrusClient:
             )
         except Exception as exc:
             logger.exception("Failed to initialize live MemWal client.")
-            raise RuntimeError("Live Walrus memory initialization failed.") from exc
+            raise WalrusUnavailableError("Live Walrus memory initialization failed.") from exc
 
-        logger.info("Connected to live Walrus Memory relayer (%s).", settings.WALRUS_ENV)
+        logger.info("Initialized MemWal client for the %s relayer.", settings.WALRUS_ENV)
 
     async def remember(self, content: str, doctor_id: str) -> bool:
         """Commits clinical content or memory delta to the physician's memory namespace."""
@@ -65,7 +69,7 @@ class WalrusClient:
             return True
         except Exception as exc:
             logger.exception("Failed to commit memory to Walrus namespace %s.", namespace)
-            raise RuntimeError("Failed to persist clinical memory to Walrus.") from exc
+            raise WalrusUnavailableError("Failed to persist clinical memory to Walrus.") from exc
 
     async def recall(
         self,
@@ -97,7 +101,7 @@ class WalrusClient:
             return recalled_texts
         except Exception as exc:
             logger.exception("Failed to recall memories from Walrus namespace %s.", namespace)
-            raise RuntimeError("Failed to recall clinical memory from Walrus.") from exc
+            raise WalrusUnavailableError("Failed to recall clinical memory from Walrus.") from exc
 
 
 async def get_walrus_client() -> WalrusClient:

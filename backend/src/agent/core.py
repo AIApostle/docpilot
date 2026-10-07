@@ -16,6 +16,15 @@ from client.walrus import get_walrus_client
 from schemas.clinical_entity import ExtractedClinicalEntity
 
 logger = logging.getLogger(__name__)
+_EXPLICIT_MEMORY_INTENT = re.compile(
+    r"\b(?:remember that|please remember|don't forget|do not forget|keep in mind|"
+    r"save this|store this|remember this|for future reference)\b",
+    re.IGNORECASE,
+)
+
+
+def _requests_persistent_memory(message: str) -> bool:
+    return bool(_EXPLICIT_MEMORY_INTENT.search(message))
 
 
 def _parse_llm_json(raw_text: str) -> Dict[str, Any]:
@@ -122,13 +131,14 @@ class DocPilotCore:
         parsed = _parse_llm_json(raw_output)
         response_text = parsed.get("response") or "Clinical note noted and reviewed."
         action_taken = parsed.get("action_taken") or "conversational"
+        normalized_action = str(action_taken).strip().lower().replace(" ", "_").replace("-", "_")
         raw_entities = parsed.get("entities") or []
         suggested_title = parsed.get("suggested_title")
 
         entities = clean_extracted_entities(raw_entities)
 
         # 4. Commit new assertions to Walrus memory
-        if entities or action_taken == "update_memory":
+        if entities or normalized_action in {"update_memory", "save_new_memory", "save_memory"} or _requests_persistent_memory(message):
             delta_content = format_memory_delta(entities, message)
             await walrus.remember(
                 content=delta_content,

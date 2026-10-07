@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from agent.core import docpilot_agent
 from auth.dependencies import get_current_doctor
+from client.walrus import WalrusUnavailableError
 from db.chat_messages_queries import (
     create_chat_message,
     list_messages_by_session_id,
@@ -210,23 +211,20 @@ async def send_message(
         for m in past_messages
     ]
 
-    # 3. Store incoming doctor message
     raw_attachments = [a.model_dump() for a in payload.attachments] if payload.attachments else []
-    await create_chat_message(
-        session_id=session_id,
-        doctor_id=doctor_id,
-        role="user",
-        content=payload.message.strip(),
-        attachments=raw_attachments,
-    )
-
-    # 4. Execute DocPilot Core Agent reasoning
+    # Execute memory recall and reasoning before recording a successful turn.
     try:
         response_text, action_taken, entities, suggested_title = await docpilot_agent.process(
             doctor_id=doctor_id,
             message=payload.message,
             conversation_history=history_turns,
         )
+    except WalrusUnavailableError as exc:
+        logger.error("Persistent Walrus memory unavailable for doctor %s.", doctor_id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistent clinical memory is unavailable. Your message was not processed; please retry later.",
+        ) from exc
     except Exception as exc:
         logger.error("DocPilot Agent processing error: %s", exc)
         response_text = (
@@ -237,7 +235,15 @@ async def send_message(
         entities = []
         suggested_title = None
 
-    # 5. Persist assistant reply
+    # Persist the turn only after memory and reasoning processing completed.
+    await create_chat_message(
+        session_id=session_id,
+        doctor_id=doctor_id,
+        role="user",
+        content=payload.message.strip(),
+        attachments=raw_attachments,
+    )
+
     entities_dump = [e.model_dump() for e in entities]
     await create_chat_message(
         session_id=session_id,
