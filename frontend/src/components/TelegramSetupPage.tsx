@@ -85,37 +85,40 @@ export function TelegramSetupPage({
           <Brand />
         </header>
 
-        <section className="telegram-card">
-          <div className="empty-page-mark" aria-hidden="true">
-            <Icon name="lock" size={20} />
+        <section className="telegram-layout">
+          <div className="telegram-intro">
+            <div className="empty-page-mark" aria-hidden="true">
+              <Icon name="book" size={22} />
+            </div>
+            <div className="telegram-copy">
+              <p className="telegram-kicker">Clinical messaging</p>
+              <h1>Connect your Telegram account</h1>
+              <p>
+                Sign in with Telegram to link your account to DocPilot. Messages sent to the bot then use the same doctor identity and memory scope as this workspace.
+              </p>
+            </div>
           </div>
 
-          <div className="telegram-copy">
-            <p className="telegram-kicker">Clinical messaging</p>
-            <h1>Connect your Telegram bot</h1>
-            <p>
-              Link your Telegram account so bedside notes and quick clinical updates can be captured in your doctor memory workspace.
+          <div className="telegram-connect-column">
+            {error && <div className="form-alert" role="alert"><span>{error}</span></div>}
+            {success && <div className="inline-alert success-alert" role="status"><span>{success}</span></div>}
+            {widgetError && <p className="form-alert" role="alert">{widgetError}</p>}
+
+            <p className="telegram-domain-note">
+              If Telegram says “Bot domain invalid”, open <a href="https://t.me/BotFather" rel="noreferrer" target="_blank">@BotFather</a>, run <code>/setdomain</code>, select <strong>@{botUsername || 'docpilot_AIbot'}</strong>, and enter this host exactly:
+              <code className="telegram-domain-value">{window.location.hostname}</code>
             </p>
-          </div>
 
-          {error && (
-            <div className="form-alert" role="alert">
-              <span>{error}</span>
-            </div>
-          )}
-
-          {success && (
-            <div className="inline-alert success-alert" role="status">
-              <span>{success}</span>
-            </div>
-          )}
-
-          {widgetError && <p className="form-alert" role="alert">{widgetError}</p>}
-          {!widgetError && !botUsername && <p role="status">Loading Telegram sign-in…</p>}
-
-          <div className="telegram-form">
+            {!widgetError && !botUsername && <p role="status">Loading Telegram sign-in…</p>}
             <div aria-label="Sign in with Telegram" className="telegram-widget-mount" ref={widgetRef} />
+
             <div className="telegram-actions">
+              {botUsername && (
+                <a className="button-primary telegram-open-bot" href={`https://t.me/${botUsername}`} rel="noreferrer" target="_blank">
+                  Open @{botUsername} in Telegram
+                  <Icon name="arrow" size={16} />
+                </a>
+              )}
               <button
                 className="text-button telegram-disconnect"
                 disabled={busy}
