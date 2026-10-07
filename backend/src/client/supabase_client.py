@@ -5,6 +5,7 @@ from .config import settings
 
 _async_supabase_client: Optional[AsyncClient] = None
 _admin_supabase_client: Optional[AsyncClient] = None
+_data_supabase_client: Optional[AsyncClient] = None
 
 
 async def get_supabase_client() -> AsyncClient:
@@ -59,10 +60,36 @@ async def get_supabase_admin_client() -> AsyncClient:
     return _admin_supabase_client
 
 
+async def get_supabase_data_client() -> AsyncClient:
+    """Provides a server-only service-role client for application table operations.
+
+    Callers must scope every read and mutation to the authenticated doctor or a
+    doctor-owned parent record; service-role clients bypass Postgres RLS.
+    """
+    global _data_supabase_client
+
+    if _data_supabase_client is not None:
+        return _data_supabase_client
+
+    url = settings.SUPABASE_URL.strip()
+    key = (settings.SUPABASE_SERVICE_ROLE_KEY or "").strip()
+    if not url or not key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Supabase table access requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+        )
+
+    _data_supabase_client = await create_async_client(
+        supabase_url=url,
+        supabase_key=key,
+    )
+    return _data_supabase_client
+
+
 async def close_supabase_client() -> None:
     """Closes any active Supabase client sessions cleanly."""
-    global _async_supabase_client, _admin_supabase_client
-    for client in (_async_supabase_client, _admin_supabase_client):
+    global _async_supabase_client, _admin_supabase_client, _data_supabase_client
+    for client in (_async_supabase_client, _admin_supabase_client, _data_supabase_client):
         if client is None:
             continue
         try:
@@ -71,3 +98,4 @@ async def close_supabase_client() -> None:
             pass
     _async_supabase_client = None
     _admin_supabase_client = None
+    _data_supabase_client = None

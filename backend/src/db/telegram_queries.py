@@ -3,7 +3,7 @@
 import logging
 import uuid
 from typing import Any, Dict, Optional
-from client.supabase_client import get_supabase_client
+from client.supabase_client import get_supabase_data_client
 
 logger = logging.getLogger(__name__)
 TABLE_NAME = "telegram_connections"
@@ -11,7 +11,7 @@ TABLE_NAME = "telegram_connections"
 
 async def get_connection_by_telegram_id(telegram_user_id: int) -> Optional[Dict[str, Any]]:
     """Retrieves the active Telegram connection mapped to a physician by Telegram user ID."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         res = (
             await supabase.table(TABLE_NAME)
@@ -29,7 +29,7 @@ async def get_connection_by_telegram_id(telegram_user_id: int) -> Optional[Dict[
 
 async def get_connection_by_doctor_id(doctor_id: str) -> Optional[Dict[str, Any]]:
     """Retrieves the active Telegram connection for a given doctor."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         res = (
             await supabase.table(TABLE_NAME)
@@ -51,7 +51,7 @@ async def upsert_telegram_connection(
     telegram_username: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Links a doctor to exactly one Telegram user and prevents cross-tenant re-use."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     record_id = f"tg_{uuid.uuid4().hex[:12]}"
     data = {
         "id": record_id,
@@ -106,7 +106,7 @@ async def upsert_telegram_connection(
 
 async def deactivate_telegram_connection(doctor_id: str) -> bool:
     """Deactivates a doctor's Telegram connection."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         res = (
             await supabase.table(TABLE_NAME)

@@ -41,7 +41,7 @@ async def test_upsert_allows_single_doctor_link(monkeypatch):
 
     monkeypatch.setattr("db.telegram_queries.get_connection_by_doctor_id", fake_get_connection_by_doctor_id)
     monkeypatch.setattr("db.telegram_queries.get_connection_by_telegram_id", fake_get_connection_by_telegram_id)
-    monkeypatch.setattr("db.telegram_queries.get_supabase_client", lambda: _async_fake_supabase_client(fake_client))
+    monkeypatch.setattr("db.telegram_queries.get_supabase_data_client", lambda: _async_fake_supabase_client(fake_client))
 
     async def _async_fake_supabase_client(client):
         return client

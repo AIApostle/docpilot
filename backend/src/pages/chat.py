@@ -129,7 +129,10 @@ async def get_session_detail(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Consultation conversation not found.",
         )
-    raw_messages = await list_messages_by_session_id(session_id=session_id)
+    raw_messages = await list_messages_by_session_id(
+        session_id=session_id,
+        doctor_id=current_doctor.sub,
+    )
     formatted = _format_session_dict(session)
     formatted["messages"] = [_format_message_dict(m) for m in raw_messages]
     return formatted
@@ -152,7 +155,10 @@ async def get_session_messages_alias(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Consultation session not found.",
         )
-    raw_messages = await list_messages_by_session_id(session_id=session_id)
+    raw_messages = await list_messages_by_session_id(
+        session_id=session_id,
+        doctor_id=current_doctor.sub,
+    )
     return [_format_message_dict(m) for m in raw_messages]
 
 
@@ -194,7 +200,11 @@ async def send_message(
         session_id = session["id"]
 
     # 2. Fetch recent conversation turns for context
-    past_messages = await list_messages_by_session_id(session_id=session_id, limit=6)
+    past_messages = await list_messages_by_session_id(
+        session_id=session_id,
+        doctor_id=doctor_id,
+        limit=6,
+    )
     history_turns = [
         {"role": "user" if m.get("role") in ("doctor", "user") else "assistant", "content": m.get("content", "")}
         for m in past_messages
@@ -243,6 +253,7 @@ async def send_message(
     curr_count = int(session.get("message_count") or len(past_messages)) + 2
     await update_chat_session(
         session_id=session_id,
+        doctor_id=doctor_id,
         title=updated_title if (is_new_session or suggested_title) else None,
         message_count=curr_count,
     )

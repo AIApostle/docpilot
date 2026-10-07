@@ -2,7 +2,7 @@
 
 import logging
 from typing import Any, Dict, Optional
-from client.supabase_client import get_supabase_client
+from client.supabase_client import get_supabase_data_client
 
 logger = logging.getLogger(__name__)
 TABLE_NAME = "doctors"
@@ -10,7 +10,7 @@ TABLE_NAME = "doctors"
 
 async def get_doctor_by_id(doctor_id: str) -> Optional[Dict[str, Any]]:
     """Retrieves a doctor record by their unique ID."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         res = (
             await supabase.table(TABLE_NAME)
@@ -27,7 +27,7 @@ async def get_doctor_by_id(doctor_id: str) -> Optional[Dict[str, Any]]:
 
 async def get_doctor_by_email(email: str) -> Optional[Dict[str, Any]]:
     """Retrieves a doctor record by their email address."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         res = (
             await supabase.table(TABLE_NAME)
@@ -52,7 +52,7 @@ async def create_doctor(
     
     Raises exception on duplicate key/unique constraint violations.
     """
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     data = {
         "id": doctor_id,
         "email": email.strip().lower(),
@@ -76,7 +76,7 @@ async def upsert_doctor(
     hashed_password: str = "[MANAGED_BY_SUPABASE_AUTH]",
 ) -> Optional[Dict[str, Any]]:
     """Inserts or updates a doctor record in the public.doctors table."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     data = {
         "id": doctor_id,
         "email": email.strip().lower(),
@@ -98,7 +98,7 @@ async def update_doctor_profile(
     full_name: str,
 ) -> Optional[Dict[str, Any]]:
     """Updates profile metadata for a physician."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         res = (
             await supabase.table(TABLE_NAME)

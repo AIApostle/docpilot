@@ -4,7 +4,7 @@ import datetime
 import logging
 import uuid
 from typing import Any, Dict, List, Optional
-from client.supabase_client import get_supabase_client
+from client.supabase_client import get_supabase_data_client
 
 logger = logging.getLogger(__name__)
 TABLE_NAME = "chat_sessions"
@@ -16,7 +16,7 @@ async def create_chat_session(
     session_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Creates a new consultation session for a physician."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     sess_id = session_id or f"sess_{uuid.uuid4().hex[:12]}"
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     session_title = (title or "New consultation").strip()
@@ -43,7 +43,7 @@ async def get_chat_session(
     doctor_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Retrieves a single chat session by ID, optionally verifying physician ownership."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         query = supabase.table(TABLE_NAME).select("*").eq("id", session_id)
         if doctor_id:
@@ -61,7 +61,7 @@ async def list_chat_sessions(
     offset: int = 0,
 ) -> List[Dict[str, Any]]:
     """Lists consultation sessions belonging to a specific doctor in reverse chronological order."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         res = (
             await supabase.table(TABLE_NAME)
@@ -79,11 +79,12 @@ async def list_chat_sessions(
 
 async def update_chat_session(
     session_id: str,
+    doctor_id: str,
     title: Optional[str] = None,
     message_count: Optional[int] = None,
 ) -> Optional[Dict[str, Any]]:
     """Updates session metadata such as title, last updated timestamp, and message count."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     updates: Dict[str, Any] = {"updated_at": now}
     if title is not None:
@@ -96,6 +97,7 @@ async def update_chat_session(
             await supabase.table(TABLE_NAME)
             .update(updates)
             .eq("id", session_id)
+            .eq("doctor_id", doctor_id)
             .execute()
         )
         return res.data[0] if (res and res.data) else None
@@ -106,7 +108,7 @@ async def update_chat_session(
 
 async def delete_chat_session(session_id: str, doctor_id: str) -> bool:
     """Deletes a chat session and its cascaded messages for a physician."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         res = (
             await supabase.table(TABLE_NAME)

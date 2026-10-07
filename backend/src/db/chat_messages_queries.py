@@ -4,7 +4,7 @@ import datetime
 import logging
 import uuid
 from typing import Any, Dict, List, Optional
-from client.supabase_client import get_supabase_client
+from client.supabase_client import get_supabase_data_client
 
 logger = logging.getLogger(__name__)
 TABLE_NAME = "docpilot_chat_messages"
@@ -21,7 +21,7 @@ async def create_chat_message(
     message_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Inserts a new clinical message into the consultation thread."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     msg_id = message_id or f"msg_{uuid.uuid4().hex[:12]}"
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -47,16 +47,18 @@ async def create_chat_message(
 
 async def list_messages_by_session_id(
     session_id: str,
+    doctor_id: str,
     limit: int = 100,
     offset: int = 0,
 ) -> List[Dict[str, Any]]:
     """Retrieves chronological messages for a consultation session."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         res = (
             await supabase.table(TABLE_NAME)
             .select("*")
             .eq("session_id", session_id)
+            .eq("doctor_id", doctor_id)
             .order("created_at", desc=False)
             .range(offset, offset + limit - 1)
             .execute()
@@ -67,14 +69,15 @@ async def list_messages_by_session_id(
         return []
 
 
-async def count_messages_by_session_id(session_id: str) -> int:
+async def count_messages_by_session_id(session_id: str, doctor_id: str) -> int:
     """Returns the total number of messages recorded in a session."""
-    supabase = await get_supabase_client()
+    supabase = await get_supabase_data_client()
     try:
         res = (
             await supabase.table(TABLE_NAME)
             .select("id", count="exact")
             .eq("session_id", session_id)
+            .eq("doctor_id", doctor_id)
             .execute()
         )
         return res.count if (res and res.count is not None) else len(res.data or [])
