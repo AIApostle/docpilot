@@ -39,3 +39,45 @@ async def test_memory_preference_routes_use_the_authenticated_doctor(monkeypatch
 def test_memory_preference_rejects_non_boolean_values():
     with pytest.raises(ValidationError):
         MemoryPreferenceUpdate(enabled="false")
+
+
+@pytest.mark.asyncio
+async def test_get_doctor_memory_enabled_defaults_to_true_on_pgrst205(monkeypatch):
+    from db.doctor_memory_preferences_queries import get_doctor_memory_enabled
+
+    class FakeAPIError(Exception):
+        code = "PGRST205"
+
+    class FailingSupabase:
+        def table(self, _name):
+            raise FakeAPIError("Could not find table in schema cache")
+
+    async def fake_client():
+        return FailingSupabase()
+
+    monkeypatch.setattr("db.doctor_memory_preferences_queries.get_supabase_data_client", fake_client)
+
+    result = await get_doctor_memory_enabled("doctor-test-id")
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_set_doctor_memory_enabled_raises_helpful_error_on_pgrst205(monkeypatch):
+    from db.doctor_memory_preferences_queries import DoctorMemoryPreferenceError, set_doctor_memory_enabled
+
+    class FakeAPIError(Exception):
+        code = "PGRST205"
+
+    class FailingSupabase:
+        def table(self, _name):
+            raise FakeAPIError("Could not find table in schema cache")
+
+    async def fake_client():
+        return FailingSupabase()
+
+    monkeypatch.setattr("db.doctor_memory_preferences_queries.get_supabase_data_client", fake_client)
+
+    with pytest.raises(DoctorMemoryPreferenceError) as exc_info:
+        await set_doctor_memory_enabled("doctor-test-id", False)
+    assert "does not exist in Supabase yet" in str(exc_info.value)
+

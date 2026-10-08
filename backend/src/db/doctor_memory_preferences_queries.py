@@ -33,7 +33,16 @@ async def get_doctor_memory_enabled(doctor_id: str) -> bool:
     except DoctorMemoryPreferenceError:
         raise
     except Exception as exc:
-        logger.error("Failed to read MemWal preference for doctor '%s'.", doctor_id)
+        code = getattr(exc, "code", None)
+        err_str = str(exc)
+        if code == "PGRST205" or "PGRST205" in err_str or "schema cache" in err_str:
+            logger.warning(
+                "Table '%s' not found in Supabase schema cache (PGRST205); defaulting to enabled (True) for doctor '%s'.",
+                TABLE_NAME,
+                doctor_id,
+            )
+            return True
+        logger.error("Failed to read MemWal preference for doctor '%s': %s", doctor_id, exc)
         raise DoctorMemoryPreferenceError("Could not read the MemWal preference.") from exc
 
 
@@ -59,5 +68,15 @@ async def set_doctor_memory_enabled(doctor_id: str, enabled: bool) -> bool:
     except DoctorMemoryPreferenceError:
         raise
     except Exception as exc:
-        logger.error("Failed to update MemWal preference for doctor '%s'.", doctor_id)
+        code = getattr(exc, "code", None)
+        err_str = str(exc)
+        if code == "PGRST205" or "PGRST205" in err_str or "schema cache" in err_str:
+            logger.error(
+                "Table '%s' not found in Supabase schema cache (PGRST205). Migration must be executed in Supabase.",
+                TABLE_NAME,
+            )
+            raise DoctorMemoryPreferenceError(
+                f"Could not save the MemWal preference: table '{TABLE_NAME}' does not exist in Supabase yet. Please execute the SQL migration."
+            ) from exc
+        logger.error("Failed to update MemWal preference for doctor '%s': %s", doctor_id, exc)
         raise DoctorMemoryPreferenceError("Could not save the MemWal preference.") from exc
