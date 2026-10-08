@@ -8,11 +8,25 @@ interface MessageComposerProps {
   value: string
   busy: boolean
   previewMode: boolean
+  memoryEnabled: boolean
+  memoryBusy: boolean
+  memoryError?: string
   onChange: (value: string) => void
   onSend: (message: string, attachments: ChatAttachment[]) => Promise<boolean>
+  onToggleMemory: () => void
 }
 
-export function MessageComposer({ value, busy, previewMode, onChange, onSend }: MessageComposerProps) {
+export function MessageComposer({
+  value,
+  busy,
+  previewMode,
+  memoryEnabled,
+  memoryBusy,
+  memoryError,
+  onChange,
+  onSend,
+  onToggleMemory,
+}: MessageComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
@@ -142,17 +156,34 @@ export function MessageComposer({ value, busy, previewMode, onChange, onSend }: 
             </button>
             <span>{previewMode ? 'Development preview · messages are not sent' : 'Enter to send · Shift + Enter for a new line'}</span>
           </div>
-          <button
-            aria-label={busy || preparing ? 'Preparing message' : 'Send message'}
-            className={ui.sendButton}
-            disabled={previewMode || busy || preparing || (!value.trim() && files.length === 0)}
-            type="submit"
-          >
-            {busy || preparing ? <span className="size-5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Icon name="send" size={18} />}
-          </button>
+          <div className="flex items-center gap-2.5">
+            {!previewMode && (
+              <button
+                aria-checked={memoryEnabled}
+                aria-label={`Turn MemWal memory ${memoryEnabled ? 'off' : 'on'}`}
+                className={`${ui.memorySwitch} ${memoryEnabled ? 'bg-green' : 'bg-ink-quiet'}`}
+                disabled={previewMode || busy || preparing || memoryBusy}
+                onClick={onToggleMemory}
+                role="switch"
+                title={`MemWal memory: ${memoryEnabled ? 'On (recalls & saves patient memories)' : 'Off (stateless note)'}`}
+                type="button"
+              >
+                <span className={`size-6 rounded-full bg-white shadow transition-transform ${memoryEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+              </button>
+            )}
+            <button
+              aria-label={busy || preparing ? 'Preparing message' : 'Send message'}
+              className={ui.sendButton}
+              disabled={previewMode || busy || preparing || (!value.trim() && files.length === 0)}
+              type="submit"
+            >
+              {busy || preparing ? <span className="size-5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Icon name="send" size={18} />}
+            </button>
+          </div>
         </div>
       </form>
       {fileError && <p className="mt-2 text-sm text-danger" role="alert">{fileError}</p>}
+      {memoryError && <p className="mt-2 text-sm text-danger" role="alert">{memoryError}</p>}
       <p className={ui.composerDisclaimer}>
         DocPilot recalls what’s documented. It does not diagnose or recommend treatment.
       </p>

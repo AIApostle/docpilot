@@ -275,8 +275,11 @@ function App() {
     try {
       const preference = await updateMemoryPreference(!memoryEnabled)
       setMemoryEnabled(preference.enabled)
+      toast.success(`MemWal memory turned ${preference.enabled ? 'on' : 'off'}.`)
     } catch (error) {
-      setMemoryError(errorText(error))
+      const msg = errorText(error)
+      setMemoryError(msg)
+      toast.error(msg || 'Memory settings could not be saved. Please retry.')
     } finally {
       setMemoryBusy(false)
     }

@@ -118,32 +118,6 @@ export function ChatWorkspace({
           )}
         </header>
 
-        {!previewMode && (
-          <section aria-label="MemWal memory setting" className={ui.memoryBanner}>
-            <div className="min-w-0">
-              <p className="m-0 font-semibold text-green-deep">MemWal memory</p>
-              <p aria-live="polite" className="m-0 text-sm text-ink-soft max-[700px]:text-xs">
-                {memoryEnabled
-                  ? 'On · can retrieve and save your memories.'
-                  : 'Off · no MemWal access; each message is stateless.'}
-              </p>
-              {memoryError && <p className="m-0 mt-1 text-xs text-danger" role="alert">{memoryError}</p>}
-            </div>
-            <button
-              aria-checked={memoryEnabled}
-              aria-label={`Turn MemWal memory ${memoryEnabled ? 'off' : 'on'}`}
-              className={`${ui.memorySwitch} ${memoryEnabled ? 'bg-green' : 'bg-ink-quiet'}`}
-              disabled={memoryBusy || sending}
-              onClick={onToggleMemory}
-              role="switch"
-              title={sending ? 'Wait for the current reply to finish.' : undefined}
-              type="button"
-            >
-              <span className={`size-6 rounded-full bg-white shadow transition-transform ${memoryEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-            </button>
-          </section>
-        )}
-
         {historyError && (
           <div className={ui.inlineAlert} role="alert">
             <span>{historyError}</span>
@@ -173,8 +147,12 @@ export function ChatWorkspace({
         <div className={ui.composerDock}>
           <MessageComposer
             busy={sending}
+            memoryBusy={memoryBusy}
+            memoryEnabled={memoryEnabled}
+            memoryError={memoryError}
             onChange={onDraftChange}
             onSend={onSend}
+            onToggleMemory={onToggleMemory}
             previewMode={previewMode}
             value={draft}
           />
