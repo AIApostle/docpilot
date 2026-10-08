@@ -48,9 +48,9 @@ async def update_memory_preference(
     try:
         enabled = await set_doctor_memory_enabled(current_doctor.sub, payload.enabled)
     except DoctorMemoryPreferenceError as exc:
-        logger.error("MemWal preference could not be saved for doctor %s.", current_doctor.sub)
+        logger.error("MemWal preference could not be saved for doctor %s: %s", current_doctor.sub, exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Memory settings could not be saved. Please retry.",
+            detail=str(exc) or "Memory settings could not be saved. Please retry.",
         ) from exc
     return MemoryPreferenceResponse(enabled=enabled)
