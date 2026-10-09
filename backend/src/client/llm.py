@@ -22,7 +22,7 @@ def get_llm_client() -> AsyncOpenAI:
 
 
 async def generate_chat_completion(
-    messages: List[Dict[str, str]],
+    messages: List[Dict[str, Any]],
     model: Optional[str] = None,
     temperature: float = 0.2,
     max_tokens: int = 1500,

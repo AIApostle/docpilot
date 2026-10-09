@@ -66,6 +66,14 @@ class ClientSettings(BaseSettings):
     TELEGRAM_SECRET_TOKEN: str = ""
     TELEGRAM_WEBHOOK_URL: str = ""
 
+    # Render Anti-Spin-Down Keep-Alive Configuration
+    RENDER_KEEP_ALIVE_ENABLED: bool = True
+    RENDER_EXTERNAL_URL: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("RENDER_EXTERNAL_URL", "RENDER_URL", "APP_URL"),
+    )
+    RENDER_PING_INTERVAL_SECONDS: int = 600
+
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env", "backend/.env"),
         env_file_encoding="utf-8",

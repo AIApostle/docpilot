@@ -9,6 +9,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from agent.document_parser import ParsedDocument, chunk_document_for_indexing, parse_document
 from agent.memory_extractor import clean_extracted_entities, format_memory_delta
 from agent.prompts import DOCPILOT_STATIC_SYSTEM_PROMPT, DOCPILOT_SYSTEM_PROMPT, build_clinical_prompt
 from client.llm import generate_chat_completion
@@ -74,42 +75,93 @@ class DocPilotCore:
         doctor_id: str,
         message: str,
         memory_enabled: bool = True,
+        attachments: Optional[List[Dict[str, Any]]] = None,
     ) -> Tuple[str, str, List[ExtractedClinicalEntity], Optional[str]]:
-        """Processes a physician's query or note.
+        """Processes a physician's query, note, and optional clinical documents.
 
         Args:
             doctor_id: Authenticated doctor's ID (used for Walrus namespace isolation).
             message: Clinical note or query text.
             memory_enabled: Whether MemWal may be used for recall and writes.
+            attachments: Optional list of raw document/image attachments.
 
         Returns:
             Tuple of (response_text, action_taken, extracted_entities, suggested_title)
         """
         walrus = await get_walrus_client() if memory_enabled else None
 
-        # 1. MemWal is the only persistent memory layer. Never initialize or
-        # call it when the authenticated doctor's setting is off.
+        # 1. Parse and extract text from attached documents
+        parsed_docs: List[ParsedDocument] = []
+        if attachments:
+            for att in attachments:
+                parsed_docs.append(parse_document(att))
+
+        # 2. Index documents into Walrus persistent memory
+        has_document_text = False
+        if memory_enabled and walrus is not None and parsed_docs:
+            for doc in parsed_docs:
+                if doc.text_content and not doc.text_content.startswith("[Binary attachment"):
+                    has_document_text = True
+                    chunks = chunk_document_for_indexing(doc)
+                    for chunk in chunks:
+                        try:
+                            await walrus.remember(content=chunk, doctor_id=doctor_id)
+                            logger.info(
+                                "Indexed document '%s' chunk into Walrus for doctor %s.",
+                                doc.filename,
+                                doctor_id,
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                "Failed to index chunk of document '%s' to Walrus: %s",
+                                doc.filename,
+                                exc,
+                            )
+
+        # 3. Recall relevant memories for the doctor
         recalled_memories = []
         if walrus is not None:
-            recalled_memories = await walrus.recall(
-                query=message,
-                doctor_id=doctor_id,
-                limit=5,
-            )
+            recall_query = message.strip()
+            doc_names = [d.filename for d in parsed_docs if d.filename]
+            if doc_names and not recall_query:
+                recall_query = f"Clinical documents: {', '.join(doc_names)}"
+            elif doc_names:
+                recall_query = f"{recall_query} {' '.join(doc_names)}"
 
-        # 2. Build clinical prompt
+            if recall_query:
+                recalled_memories = await walrus.recall(
+                    query=recall_query,
+                    doctor_id=doctor_id,
+                    limit=5,
+                )
+
+        # 4. Build clinical prompt containing recalled memories, documents, and message
         clinical_user_prompt = build_clinical_prompt(
             doctor_message=message,
             recalled_memories=recalled_memories,
+            documents=parsed_docs,
         )
 
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {"role": "system", "content": DOCPILOT_SYSTEM_PROMPT if memory_enabled else DOCPILOT_STATIC_SYSTEM_PROMPT},
         ]
 
-        messages.append({"role": "user", "content": clinical_user_prompt})
+        has_images = any(d.is_image and d.image_data_url for d in parsed_docs)
+        if has_images:
+            content_parts: List[Dict[str, Any]] = [
+                {"type": "text", "text": clinical_user_prompt}
+            ]
+            for d in parsed_docs:
+                if d.is_image and d.image_data_url:
+                    content_parts.append({
+                        "type": "image_url",
+                        "image_url": {"url": d.image_data_url},
+                    })
+            messages.append({"role": "user", "content": content_parts})
+        else:
+            messages.append({"role": "user", "content": clinical_user_prompt})
 
-        # 3. Call LLM for clinical reasoning
+        # 5. Call LLM for clinical reasoning
         try:
             raw_output = await generate_chat_completion(
                 messages=messages,
@@ -132,13 +184,17 @@ class DocPilotCore:
 
         entities = clean_extracted_entities(raw_entities) if memory_enabled else []
 
-        # 4. Commit new assertions to Walrus memory
+        # 6. Commit new assertions & document references to Walrus memory
         if memory_enabled and walrus is not None and (
             entities
+            or has_document_text
             or normalized_action in {"update_memory", "save_new_memory", "save_memory"}
             or _requests_persistent_memory(message)
         ):
             delta_content = format_memory_delta(entities, message)
+            if parsed_docs:
+                doc_labels = ", ".join(d.filename for d in parsed_docs)
+                delta_content += f"\n[Referenced Documents: {doc_labels}]"
             await walrus.remember(
                 content=delta_content,
                 doctor_id=doctor_id,

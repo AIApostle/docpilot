@@ -12,6 +12,7 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from client.config import settings
+from client.keepalive import start_keepalive_service, stop_keepalive_service
 from client.supabase_client import close_supabase_client
 from client.telegram import configure_telegram_webhook
 from db.schema import verify_database_schema
@@ -34,8 +35,10 @@ async def lifespan(app: FastAPI):
     await verify_database_schema()
     if settings.ENVIRONMENT.lower() in {"production", "prod"}:
         await configure_telegram_webhook()
+    start_keepalive_service()
     yield
     logger.info("Shutting down DocPilot API backend, cleaning up resources...")
+    await stop_keepalive_service()
     await close_supabase_client()
 
 
@@ -72,6 +75,20 @@ async def health_check():
         "app": "docpilot",
         "version": "2.0.0",
         "environment": settings.ENVIRONMENT,
+    }
+
+
+@app.get(
+    "/ping",
+    status_code=status.HTTP_200_OK,
+    tags=["System"],
+    summary="Keep-alive ping endpoint",
+    description="Rapid ping endpoint to verify responsiveness and prevent Render idle spin-downs.",
+)
+async def ping():
+    return {
+        "status": "pong",
+        "app": "docpilot",
     }
 
 

@@ -60,6 +60,8 @@ def _format_message_dict(msg: Dict[str, Any]) -> Dict[str, Any]:
             for key in ("filename", "file_type", "description")
             if isinstance(attachment.get(key), str)
         }
+        if "indexed" in attachment and isinstance(attachment["indexed"], bool):
+            metadata["indexed"] = attachment["indexed"]
         if metadata.get("filename") and metadata.get("file_type"):
             attachments.append(metadata)
     return {
@@ -218,6 +220,7 @@ async def send_message(
             doctor_id=doctor_id,
             message=payload.message,
             memory_enabled=memory_enabled,
+            attachments=raw_attachments,
         )
     except WalrusUnavailableError as exc:
         logger.error("Persistent Walrus memory unavailable for doctor %s.", doctor_id)
@@ -232,13 +235,21 @@ async def send_message(
         entities = []
         suggested_title = None
 
+    # Enrich attachments with indexing metadata for clinical audit
+    persisted_attachments = []
+    for att in raw_attachments:
+        att_item = dict(att)
+        if memory_enabled:
+            att_item["indexed"] = True
+        persisted_attachments.append(att_item)
+
     # Persist the turn only after memory and reasoning processing completed.
     await create_chat_message(
         session_id=session_id,
         doctor_id=doctor_id,
         role="user",
         content=payload.message.strip(),
-        attachments=raw_attachments,
+        attachments=persisted_attachments,
     )
 
     entities_dump = [e.model_dump() for e in entities]

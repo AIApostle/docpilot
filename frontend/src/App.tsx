@@ -221,6 +221,7 @@ function App() {
       attachments: attachments.map(({ filename, file_type }) => ({ filename, file_type })),
     }
 
+    setDraft('')
     setSending(true)
     setThreadError('')
     setActiveConversation((current) => ({
@@ -249,7 +250,6 @@ function App() {
         messages: [...(previousConversation?.messages ?? []), userMessage, assistantMessage],
       }
       setActiveConversation(conversation)
-      setDraft((currentDraft) => currentDraft === draftAtSend ? '' : currentDraft)
       setHistory((current) => [
         { id: conversation.id, title: conversation.title, updatedAt: conversation.updatedAt },
         ...current.filter((chat) => chat.id !== conversation.id),
@@ -260,6 +260,7 @@ function App() {
       }
       return true
     } catch (error) {
+      setDraft(draftAtSend)
       setActiveConversation(previousConversation)
       setThreadError(errorText(error))
       return false

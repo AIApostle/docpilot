@@ -1,6 +1,6 @@
 """System prompts and prompt assembly templates for DocPilot clinical agent."""
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 DOCPILOT_SYSTEM_PROMPT = """You are DocPilot, an elite clinical AI assistant designed specifically for physicians.
 You operate with a persistent, decentralized memory of the doctor's patients and consultations.
@@ -14,6 +14,7 @@ Core Principles:
 6. Ambiguity Resolution: If the doctor's query refers to a patient name matching multiple distinct clinical profiles, ask for brief clarification referencing differentiating details (e.g. age, primary condition, recent visit).
 7. Workflow Assistant: You are a workflow and memory assistant for physicians, not an autonomous diagnostic agent or primary prescriber.
 8. Ask clarifying questions if the doctor's input is ambiguous, incomplete, or could lead to unsafe or incomplete knowledge of the patient.
+9. Clinical Document Analysis & Indexing: When documents, lab results, pathology reports, or records are provided in <ATTACHED_DOCUMENTS>, thoroughly review their contents, numerical findings, reference ranges, and observations. Cite specific documents and values directly in your response. Extract all clinical assertions (patient identifiers, lab results, diagnoses, medications, vitals, plans) present in the documents into the `entities` array so they are indexed into persistent clinical memory.
 Output Format:
 You must ALWAYS respond with a valid JSON object with the following keys:
 {
@@ -32,9 +33,9 @@ You must ALWAYS respond with a valid JSON object with the following keys:
 
 DOCPILOT_STATIC_SYSTEM_PROMPT = """You are DocPilot, a stateless clinical workflow assistant for physicians.
 
-MemWal memory is OFF. You have no access to saved patient memories or previous conversation turns. Use only the physician's current message. Do not infer or claim facts from another visit or chat. When asked to recall undocumented history, state that it is unavailable in this stateless conversation and ask the physician to provide the relevant context. When asked to remember or save something, explain that MemWal is off and you cannot retain it for future conversations. Never claim that information was saved.
+MemWal memory is OFF. You have no access to saved patient memories or previous conversation turns. Use only the physician's current message and any files in <ATTACHED_DOCUMENTS>. Do not infer or claim facts from another visit or chat. When asked to recall undocumented history, state that it is unavailable in this stateless conversation and ask the physician to provide the relevant context. When asked to remember or save something, explain that MemWal is off and you cannot retain it for future conversations. Never claim that information was saved.
 
-Ground patient information in the current message only. If details are missing or ambiguous, say so and ask a clarifying question. Do not diagnose, recommend treatment, or fabricate patient facts.
+Ground patient information in the current message and attached documents only. If details are missing or ambiguous, say so and ask a clarifying question. Do not diagnose, recommend treatment, or fabricate patient facts.
 
 You must ALWAYS respond with a valid JSON object with the following keys:
 {
@@ -49,8 +50,9 @@ You must ALWAYS respond with a valid JSON object with the following keys:
 def build_clinical_prompt(
     doctor_message: str,
     recalled_memories: Optional[List[str]] = None,
+    documents: Optional[List[Any]] = None,
 ) -> str:
-    """Constructs prompt containing recalled memories and current clinical message."""
+    """Constructs prompt containing recalled memories, attached documents, and clinical query."""
     parts = []
 
     if recalled_memories:
@@ -58,6 +60,22 @@ def build_clinical_prompt(
         if formatted_memories:
             parts.append(
                 f"<RECALLED_MEMORIES>\n{formatted_memories}\n</RECALLED_MEMORIES>\n"
+            )
+
+    if documents:
+        doc_blocks = []
+        for i, doc in enumerate(documents, 1):
+            name = getattr(doc, "filename", None) or (doc.get("filename") if isinstance(doc, dict) else f"document_{i}")
+            ftype = getattr(doc, "file_type", None) or (doc.get("file_type") if isinstance(doc, dict) else "unknown")
+            text = getattr(doc, "text_content", None) or (doc.get("text_content") if isinstance(doc, dict) else str(doc))
+            text_str = str(text or "").strip()
+            if text_str:
+                doc_blocks.append(
+                    f"=== Document {i}: {name} ({ftype}, {len(text_str)} chars) ===\n{text_str}\n=== End of {name} ==="
+                )
+        if doc_blocks:
+            parts.append(
+                f"<ATTACHED_DOCUMENTS>\n" + "\n\n".join(doc_blocks) + "\n</ATTACHED_DOCUMENTS>\n"
             )
 
     parts.append(f"Physician Note / Query:\n{doctor_message.strip()}")

@@ -69,12 +69,22 @@ export function MessageComposer({
   async function submitMessage() {
     const message = value.trim()
     if ((!message && files.length === 0) || busy || preparing || previewMode) return
+    const pendingFiles = [...files]
+    const previousValue = value
     setPreparing(true)
     setFileError('')
+    onChange('')
+    setFiles([])
     try {
-      const attachments = await Promise.all(files.map(encodeFile))
-      if (await onSend(message, attachments)) setFiles([])
+      const attachments = await Promise.all(pendingFiles.map(encodeFile))
+      const sent = await onSend(message, attachments)
+      if (!sent) {
+        onChange(previousValue)
+        setFiles(pendingFiles)
+      }
     } catch {
+      onChange(previousValue)
+      setFiles(pendingFiles)
       setFileError('The selected files could not be prepared. Please try again.')
     } finally {
       setPreparing(false)
