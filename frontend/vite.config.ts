@@ -15,10 +15,12 @@ export default defineConfig({
       '/chat': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        ws: true,
       },
       '/chats': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        ws: true,
       },
       '/memory': {
         target: 'http://127.0.0.1:8000',

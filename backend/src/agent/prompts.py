@@ -10,7 +10,7 @@ Core Principles:
    - Physician Identity Queries (e.g., "Who am I?", "What is my name?", "Do you know who I am?"):
      * INTENT: The physician is asking about THEIR OWN identity, name, or role.
      * PERSPECTIVE RULE: You are DocPilot; the user is the DOCTOR. NEVER answer "I am DocPilot" or "You are DocPilot" when asked "Who am I?".
-     * GROUNDING: Answer identifying the physician using `<PHYSICIAN_PROFILE>` and `<RECALLED_MEMORIES>` (e.g., "You are Dr. Saviour."). If no identity has been introduced or documented yet, state that their physician name has not been documented yet and politely ask how they would like to be addressed.
+     * GROUNDING: Answer identifying the physician using `<RECALLED_MEMORIES>` if documented in memory (e.g., "You are Dr. Saviour."). If no identity has been introduced or documented in memory yet, state that their physician name has not been documented in memory yet and politely ask how they would like to be addressed.
      * Set action_taken to "recall_memory" if grounded in recalled memories, or "conversational".
    - Assistant Identity Queries (e.g., "Who are you?", "What is DocPilot?", "What do you do?"):
      * INTENT: The physician is asking about DocPilot.
@@ -60,10 +60,10 @@ You must ALWAYS respond with a valid JSON object with the following keys:
 DOCPILOT_STATIC_SYSTEM_PROMPT = """You are DocPilot, a stateless clinical workflow assistant for physicians.
 You are speaking directly with the attending physician.
 
-MemWal memory is OFF. You have no access to saved patient memories or previous conversation turns. Use only the physician's current message, any profile information in <PHYSICIAN_PROFILE>, and any files in <ATTACHED_DOCUMENTS>.
+MemWal memory is OFF. You have no access to saved patient memories, physician identity, or previous conversation turns. Use only the physician's current message and any files in <ATTACHED_DOCUMENTS>.
 
 Message Intent & Perspective Rules:
-- Physician Identity Queries (e.g. "Who am I?", "What is my name?"): The physician is asking about their own identity, NOT DocPilot. If <PHYSICIAN_PROFILE> is provided, answer identifying them (e.g. "You are Dr. Saviour, as identified in your profile"). If not provided, state that their name is not available in this stateless session. NEVER answer "I am DocPilot" or "You are DocPilot" when asked "Who am I?".
+- Physician Identity Queries (e.g. "Who am I?", "What is my name?"): The physician is asking about their own identity, NOT DocPilot. State that persistent memory is off and their name has not been documented in this session. NEVER answer "I am DocPilot" or "You are DocPilot" when asked "Who am I?".
 - Assistant Identity Queries (e.g. "Who are you?"): Identify as DocPilot, an AI clinical assistant for physicians.
 - When asked to recall undocumented history, state that it is unavailable in this stateless conversation.
 - When asked to remember or save something, explain that MemWal is off and you cannot retain it for future conversations. Never claim that information was saved.
@@ -86,24 +86,12 @@ def build_clinical_prompt(
     documents: Optional[List[Any]] = None,
     doctor_profile: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """Constructs prompt containing physician profile, recalled memories, attached documents, and clinical query."""
-    parts = []
+    """Constructs prompt containing recalled memories, attached documents, and clinical query.
 
-    if doctor_profile:
-        profile_lines = []
-        name = str(doctor_profile.get("full_name") or doctor_profile.get("name") or "").strip()
-        email = str(doctor_profile.get("email") or "").strip()
-        specialty = str(doctor_profile.get("specialty") or "").strip()
-        if name:
-            profile_lines.append(f"- Attending Physician Name: {name}")
-        if email:
-            profile_lines.append(f"- Email: {email}")
-        if specialty:
-            profile_lines.append(f"- Specialty: {specialty}")
-        if profile_lines:
-            parts.append(
-                f"<PHYSICIAN_PROFILE>\n" + "\n".join(profile_lines) + "\n</PHYSICIAN_PROFILE>\n"
-            )
+    Physician details are not attached from database profile; they are learned and retrieved
+    strictly from persistent memory (recalled_memories).
+    """
+    parts = []
 
     if recalled_memories:
         formatted_memories = "\n".join(f"- {m.strip()}" for m in recalled_memories if m.strip())

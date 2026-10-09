@@ -28,9 +28,9 @@ def test_extract_doctor_intro_name():
 
 
 def test_extract_doctor_name_from_context():
-    # From profile
-    assert extract_doctor_name_from_context(doctor_profile={"full_name": "Dr. Saviour"}) == "Dr. Saviour"
-    
+    # Doctor details must come strictly from memory, not database profile
+    assert extract_doctor_name_from_context(doctor_profile={"full_name": "Dr. Saviour"}) is None
+
     # From recalled memories
     memories = [
         "[2026-10-09 03:00 UTC] Physician Profile / Identity (Dr. Saviour): doctor_profile: Physician identity is Dr. Saviour"
@@ -57,14 +57,17 @@ def test_format_memory_delta_separates_doctor_from_patient():
     assert "Patient: Dr. Saviour" not in delta
 
 
-def test_build_clinical_prompt_includes_physician_profile():
+def test_build_clinical_prompt_does_not_attach_physician_profile():
+    # Physician profile must NOT be attached to the prompt
     prompt = build_clinical_prompt(
         doctor_message="who am i",
         doctor_profile={"full_name": "Dr. Saviour", "email": "saviour@hospital.org"},
+        recalled_memories=["Physician identity is Dr. Saviour"],
     )
-    assert "<PHYSICIAN_PROFILE>" in prompt
-    assert "- Attending Physician Name: Dr. Saviour" in prompt
-    assert "- Email: saviour@hospital.org" in prompt
+    assert "<PHYSICIAN_PROFILE>" not in prompt
+    assert "- Attending Physician Name" not in prompt
+    assert "<RECALLED_MEMORIES>" in prompt
+    assert "Physician identity is Dr. Saviour" in prompt
     assert "who am i" in prompt
 
 

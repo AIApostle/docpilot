@@ -2,11 +2,11 @@
 
 import datetime
 import logging
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Any, Awaitable, Callable, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 
 from agent.core import docpilot_agent
-from auth.dependencies import get_current_doctor
+from auth.dependencies import authenticate_token_string, get_current_doctor
 from client.walrus import WalrusUnavailableError
 from db.chat_messages_queries import (
     create_chat_message,
@@ -166,18 +166,14 @@ async def get_session_messages_alias(
     return [_format_message_dict(m) for m in raw_messages]
 
 
-@router.post(
-    "",
-    response_model=Dict[str, Any],
-    status_code=status.HTTP_200_OK,
-    summary="Send clinical note or query",
-    description="Processes a clinical note or question using the authenticated doctor's MemWal setting.",
-)
-async def send_message(
-    payload: ChatRequest,
-    current_doctor: TokenPayload = Depends(get_current_doctor),
+async def process_chat_turn(
+    doctor_id: str,
+    message: str,
+    session_id: Optional[str] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
+    on_status: Optional[Callable[[str, str], Awaitable[None]]] = None,
 ) -> Dict[str, Any]:
-    doctor_id = current_doctor.sub
+    """Processes a single consultation message turn for doctor, shared by HTTP and WebSocket."""
     try:
         memory_enabled = await get_doctor_memory_enabled(doctor_id)
     except DoctorMemoryPreferenceError as exc:
@@ -187,7 +183,6 @@ async def send_message(
             detail="Memory settings are temporarily unavailable. Please retry.",
         ) from exc
 
-    session_id = payload.resolved_session_id()
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     # 1. Resolve or create consultation session
@@ -199,7 +194,7 @@ async def send_message(
     if not session:
         is_new_session = True
         # Generate initial title from first 60 chars of doctor message
-        fallback_title = payload.message.strip().replace("\n", " ")[:60]
+        fallback_title = message.strip().replace("\n", " ")[:60]
         session = await create_chat_session(
             doctor_id=doctor_id,
             title=fallback_title or "New consultation",
@@ -212,21 +207,16 @@ async def send_message(
             )
         session_id = session["id"]
 
-    raw_attachments = [a.model_dump() for a in payload.attachments] if payload.attachments else []
-    # The transcript is stored for the doctor's UI, but never fed to the model.
-    # MemWal is the only memory source used for model context.
-    doctor_profile = {
-        "id": doctor_id,
-        "email": current_doctor.email,
-        "full_name": current_doctor.full_name,
-    }
+    raw_attachments = [dict(a) for a in (attachments or [])]
+
+    # Process through agent without injecting Supabase doctor profile into prompt
     try:
         response_text, action_taken, entities, suggested_title = await docpilot_agent.process(
             doctor_id=doctor_id,
-            message=payload.message,
+            message=message,
             memory_enabled=memory_enabled,
             attachments=raw_attachments,
-            doctor_profile=doctor_profile,
+            on_status=on_status,
         )
     except WalrusUnavailableError as exc:
         logger.error("Persistent Walrus memory unavailable for doctor %s.", doctor_id)
@@ -254,7 +244,7 @@ async def send_message(
         session_id=session_id,
         doctor_id=doctor_id,
         role="user",
-        content=payload.message.strip(),
+        content=message.strip(),
         attachments=persisted_attachments,
     )
 
@@ -268,7 +258,7 @@ async def send_message(
         entities_extracted=entities_dump,
     )
 
-    # 6. Update session title and message count
+    # Update session title and message count
     updated_title = suggested_title or session.get("title")
     curr_count = int(session.get("message_count") or 0) + 2
     await update_chat_session(
@@ -291,6 +281,119 @@ async def send_message(
         "updatedAt": now_iso,
         "memory_enabled": memory_enabled,
     }
+
+
+@router.post(
+    "",
+    response_model=Dict[str, Any],
+    status_code=status.HTTP_200_OK,
+    summary="Send clinical note or query",
+    description="Processes a clinical note or question using the authenticated doctor's MemWal setting.",
+)
+async def send_message(
+    payload: ChatRequest,
+    current_doctor: TokenPayload = Depends(get_current_doctor),
+) -> Dict[str, Any]:
+    raw_attachments = [a.model_dump() for a in payload.attachments] if payload.attachments else []
+    return await process_chat_turn(
+        doctor_id=current_doctor.sub,
+        message=payload.message,
+        session_id=payload.resolved_session_id(),
+        attachments=raw_attachments,
+    )
+
+
+@router.websocket("/ws")
+async def chat_websocket(websocket: WebSocket):
+    """WebSocket endpoint powering bidirectional, real-time chat between physician and DocPilot."""
+    token = websocket.query_params.get("token")
+    doctor: Optional[TokenPayload] = None
+    if token:
+        doctor = await authenticate_token_string(token)
+
+    if not doctor:
+        await websocket.accept()
+        try:
+            init_msg = await websocket.receive_json()
+            if init_msg.get("type") == "auth" and init_msg.get("token"):
+                doctor = await authenticate_token_string(str(init_msg["token"]))
+        except Exception:
+            pass
+
+        if not doctor:
+            await websocket.send_json({
+                "type": "error",
+                "detail": "Authentication failed. Valid Bearer token required.",
+            })
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+    else:
+        await websocket.accept()
+
+    await websocket.send_json({
+        "type": "connected",
+        "doctor_id": doctor.sub,
+    })
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            msg_type = data.get("type") or "message"
+            if msg_type == "ping":
+                await websocket.send_json({"type": "pong"})
+                continue
+            if msg_type != "message":
+                continue
+
+            message_text = str(data.get("message") or "").strip()
+            raw_attachments = data.get("attachments") or []
+            session_id = data.get("conversation_id") or data.get("session_id")
+            if not message_text and not raw_attachments:
+                await websocket.send_json({
+                    "type": "error",
+                    "detail": "Message or attachments required.",
+                })
+                continue
+
+            async def send_status(stage: str, status_msg: str):
+                try:
+                    await websocket.send_json({
+                        "type": "status",
+                        "status": stage,
+                        "stage": stage,
+                        "message": status_msg,
+                    })
+                except Exception as ws_err:
+                    logger.debug("Failed to send WebSocket status update: %s", ws_err)
+
+            try:
+                result = await process_chat_turn(
+                    doctor_id=doctor.sub,
+                    message=message_text,
+                    session_id=session_id,
+                    attachments=raw_attachments,
+                    on_status=send_status,
+                )
+                await websocket.send_json({
+                    "type": "response",
+                    **result,
+                })
+            except HTTPException as http_exc:
+                await websocket.send_json({
+                    "type": "error",
+                    "detail": http_exc.detail,
+                    "status_code": http_exc.status_code,
+                })
+            except Exception as turn_exc:
+                logger.error("Error processing WebSocket message for %s: %s", doctor.sub, turn_exc)
+                await websocket.send_json({
+                    "type": "error",
+                    "detail": "Could not process consultation message. Please try again.",
+                })
+    except WebSocketDisconnect:
+        logger.info("Doctor %s disconnected from consultation websocket.", doctor.sub)
+    except Exception as exc:
+        logger.debug("WebSocket connection terminated: %s", exc)
 
 
 @router.delete(

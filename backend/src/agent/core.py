@@ -7,7 +7,7 @@ clinical entity extraction, and memory consolidation.
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from agent.document_parser import ParsedDocument, chunk_document_for_indexing, parse_document
 from agent.memory_extractor import clean_extracted_entities, format_memory_delta
@@ -63,12 +63,7 @@ def extract_doctor_name_from_context(
     doctor_profile: Optional[Dict[str, Any]] = None,
     recalled_memories: Optional[List[str]] = None,
 ) -> Optional[str]:
-    """Attempts to identify the attending physician's name from profile or recalled memories."""
-    if doctor_profile:
-        name = doctor_profile.get("full_name") or doctor_profile.get("name")
-        if name and str(name).strip():
-            return str(name).strip()
-
+    """Attempts to identify the attending physician's name strictly from recalled memories."""
     if recalled_memories:
         for mem in recalled_memories:
             m = re.search(r"Physician Profile / Identity \(([^)]+)\)", mem)
@@ -138,6 +133,7 @@ class DocPilotCore:
         memory_enabled: bool = True,
         attachments: Optional[List[Dict[str, Any]]] = None,
         doctor_profile: Optional[Dict[str, Any]] = None,
+        on_status: Optional[Callable[[str, str], Awaitable[None]]] = None,
     ) -> Tuple[str, str, List[ExtractedClinicalEntity], Optional[str]]:
         """Processes a physician's query, note, and optional clinical documents.
 
@@ -146,36 +142,18 @@ class DocPilotCore:
             message: Clinical note or query text.
             memory_enabled: Whether MemWal may be used for recall and writes.
             attachments: Optional list of raw document/image attachments.
-            doctor_profile: Optional dictionary containing doctor's profile (name, email, specialty).
+            doctor_profile: Ignored for prompt assembly; doctor details are retrieved from memory.
+            on_status: Optional async callback for streaming progress updates (e.g. recalling, thinking, documenting).
 
         Returns:
             Tuple of (response_text, action_taken, extracted_entities, suggested_title)
         """
         walrus = await get_walrus_client() if memory_enabled else None
 
-        # 0. Resolve doctor profile from Supabase if not explicitly provided
-        if doctor_profile is None and doctor_id:
-            try:
-                from db.doctors_queries import get_doctor_by_id
-                rec = await get_doctor_by_id(doctor_id)
-                if rec:
-                    doctor_profile = dict(rec)
-            except Exception as exc:
-                logger.debug("Could not auto-fetch doctor profile for %s: %s", doctor_id, exc)
-
         # Detect message intent: self-introduction vs self-identity query
         intro_doctor_name = extract_doctor_intro_name(message)
         is_doctor_intro = intro_doctor_name is not None
         is_identity_query = bool(_DOCTOR_IDENTITY_QUERY_PATTERN.search(message))
-
-        if is_doctor_intro and intro_doctor_name:
-            doctor_profile = dict(doctor_profile or {})
-            doctor_profile["full_name"] = intro_doctor_name
-            try:
-                from db.doctors_queries import update_doctor_profile
-                await update_doctor_profile(doctor_id, intro_doctor_name)
-            except Exception as exc:
-                logger.debug("Could not persist doctor profile name to Supabase: %s", exc)
 
         # 1. Parse and extract text from attached documents
         parsed_docs: List[ParsedDocument] = []
@@ -208,6 +186,9 @@ class DocPilotCore:
         # 3. Recall relevant memories for the doctor
         recalled_memories = []
         if walrus is not None:
+            if on_status:
+                await on_status("recalling", "Remembering clinical context…")
+
             recall_query = message.strip()
             if is_identity_query:
                 recall_query = f"{recall_query} physician profile doctor identity name Dr attending physician"
@@ -224,12 +205,12 @@ class DocPilotCore:
                     limit=5,
                 )
 
-        # 4. Build clinical prompt containing physician profile, recalled memories, documents, and message
+        # 4. Build clinical prompt containing recalled memories, documents, and message
+        # Note: Physician details are not injected from Supabase; they come from recalled_memories
         clinical_user_prompt = build_clinical_prompt(
             doctor_message=message,
             recalled_memories=recalled_memories,
             documents=parsed_docs,
-            doctor_profile=doctor_profile,
         )
 
         messages: List[Dict[str, Any]] = [
@@ -252,6 +233,9 @@ class DocPilotCore:
             messages.append({"role": "user", "content": clinical_user_prompt})
 
         # 5. Call LLM for clinical reasoning
+        if on_status:
+            await on_status("thinking", "DocPilot is thinking…")
+
         try:
             raw_output = await generate_chat_completion(
                 messages=messages,
@@ -292,9 +276,8 @@ class DocPilotCore:
             if not suggested_title:
                 suggested_title = f"Physician Profile - {intro_doctor_name}"
 
-        # Grounding safeguard: ensure 'Who am I?' answers identify the physician, not DocPilot
+        # Grounding safeguard: ensure 'Who am I?' answers identify the physician strictly from memory
         known_doctor_name = extract_doctor_name_from_context(
-            doctor_profile=doctor_profile,
             recalled_memories=recalled_memories,
         )
         if is_identity_query:
@@ -328,6 +311,9 @@ class DocPilotCore:
             or normalized_action in {"update_memory", "save_new_memory", "save_memory"}
             or _requests_persistent_memory(message)
         ):
+            if on_status:
+                await on_status("documenting", "Documenting clinical findings…")
+
             delta_content = format_memory_delta(entities, message)
             if parsed_docs:
                 doc_labels = ", ".join(d.filename for d in parsed_docs)

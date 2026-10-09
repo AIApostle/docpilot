@@ -106,6 +106,17 @@ function makeUrl(path: string): string {
   return `${apiBaseUrl}${normalizedPath}`
 }
 
+export function getWebSocketUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  if (apiBaseUrl.startsWith('http://') || apiBaseUrl.startsWith('https://')) {
+    const wsBase = apiBaseUrl.replace(/^http/, 'ws')
+    return `${wsBase}${normalizedPath}`
+  }
+  const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = typeof window !== 'undefined' ? window.location.host : 'localhost:8000'
+  return `${protocol}//${host}${apiBaseUrl}${normalizedPath}`
+}
+
 export async function request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getStoredToken()
   const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}

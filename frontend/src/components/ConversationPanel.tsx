@@ -10,6 +10,7 @@ interface ConversationPanelProps {
   conversationLoaded: boolean
   threadLoading: boolean
   sending: boolean
+  statusMessage?: string
   messagesEndRef: RefObject<HTMLDivElement | null>
   onDraftChange: (value: string) => void
   onRetryConversation: () => void
@@ -21,6 +22,7 @@ export function ConversationPanel({
   conversationLoaded,
   threadLoading,
   sending,
+  statusMessage,
   messagesEndRef,
   onDraftChange,
   onRetryConversation,
@@ -125,7 +127,7 @@ export function ConversationPanel({
         {sending && (
           <div className="flex items-center gap-2 text-sm text-ink-quiet" role="status">
             <span className="size-2 animate-pulse rounded-full bg-green" />
-            <span>Checking documented memories…</span>
+            <span>{statusMessage || 'DocPilot is thinking…'}</span>
           </div>
         )}
         <div ref={messagesEndRef} />

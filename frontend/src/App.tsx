@@ -56,6 +56,7 @@ function App() {
   const [historyError, setHistoryError] = useState('')
   const [historyBusy, setHistoryBusy] = useState(false)
   const [sending, setSending] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('')
   const [memoryEnabled, setMemoryEnabled] = useState<boolean | null>(null)
   const [memoryBusy, setMemoryBusy] = useState(false)
   const [memoryError, setMemoryError] = useState('')
@@ -223,6 +224,7 @@ function App() {
 
     setDraft('')
     setSending(true)
+    setStatusMessage('DocPilot is thinking…')
     setThreadError('')
     setActiveConversation((current) => ({
       id: current?.id ?? '',
@@ -235,7 +237,12 @@ function App() {
     }))
 
     try {
-      const result = await sendChatMessage(messageText, existingId, attachments)
+      const result = await sendChatMessage(
+        messageText,
+        existingId,
+        attachments,
+        (status) => setStatusMessage(status),
+      )
       const assistantMessage: ChatMessage = {
         id: `local-assistant-${Date.now()}`,
         role: 'assistant',
@@ -266,6 +273,7 @@ function App() {
       return false
     } finally {
       setSending(false)
+      setStatusMessage('')
     }
   }
 
@@ -435,6 +443,7 @@ function App() {
         refreshing={historyBusy}
         route={route}
         sending={sending}
+        statusMessage={statusMessage}
         threadError={threadError}
       />
     </>

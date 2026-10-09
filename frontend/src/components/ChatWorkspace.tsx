@@ -17,6 +17,7 @@ interface ChatWorkspaceProps {
   memoryBusy: boolean
   memoryError: string
   sending: boolean
+  statusMessage?: string
   refreshing: boolean
   menuOpen: boolean
   draft: string
@@ -45,6 +46,7 @@ export function ChatWorkspace({
   memoryBusy,
   memoryError,
   sending,
+  statusMessage,
   refreshing,
   menuOpen,
   draft,
@@ -141,6 +143,7 @@ export function ChatWorkspace({
           onRetryConversation={onRetryConversation}
           route={route}
           sending={sending}
+          statusMessage={statusMessage}
           threadLoading={Boolean(selectedId && !activeConversation)}
         />
 
