@@ -62,3 +62,10 @@ async def test_keepalive_service_lifecycle(monkeypatch):
 
     await stop_keepalive_service()
     assert task.done() or task.cancelled()
+
+
+def test_render_ping_interval_defaults_to_fourteen_minutes():
+    from client.config import ClientSettings
+
+    default_settings = ClientSettings(_env_file=None)
+    assert default_settings.RENDER_PING_INTERVAL_SECONDS == 840  # 14 minutes

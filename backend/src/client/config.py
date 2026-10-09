@@ -72,7 +72,7 @@ class ClientSettings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("RENDER_EXTERNAL_URL", "RENDER_URL", "APP_URL"),
     )
-    RENDER_PING_INTERVAL_SECONDS: int = 600
+    RENDER_PING_INTERVAL_SECONDS: int = 840  # 14 minutes
 
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env", "backend/.env"),
