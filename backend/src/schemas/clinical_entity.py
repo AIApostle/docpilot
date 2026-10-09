@@ -12,6 +12,8 @@ class ClinicalEntityCategory(str, Enum):
     SYMPTOM = "symptom"
     ALLERGY = "allergy"
     PLAN = "plan"
+    DOCTOR_PROFILE = "doctor_profile"
+    DOCTOR_PREFERENCE = "doctor_preference"
     OTHER = "other"
 
 

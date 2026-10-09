@@ -215,12 +215,18 @@ async def send_message(
     raw_attachments = [a.model_dump() for a in payload.attachments] if payload.attachments else []
     # The transcript is stored for the doctor's UI, but never fed to the model.
     # MemWal is the only memory source used for model context.
+    doctor_profile = {
+        "id": doctor_id,
+        "email": current_doctor.email,
+        "full_name": current_doctor.full_name,
+    }
     try:
         response_text, action_taken, entities, suggested_title = await docpilot_agent.process(
             doctor_id=doctor_id,
             message=payload.message,
             memory_enabled=memory_enabled,
             attachments=raw_attachments,
+            doctor_profile=doctor_profile,
         )
     except WalrusUnavailableError as exc:
         logger.error("Persistent Walrus memory unavailable for doctor %s.", doctor_id)

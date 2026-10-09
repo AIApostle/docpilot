@@ -22,6 +22,67 @@ _EXPLICIT_MEMORY_INTENT = re.compile(
     r"save this|store this|remember this|for future reference)\b",
     re.IGNORECASE,
 )
+_DOCTOR_IDENTITY_QUERY_PATTERN = re.compile(
+    r"\b(?:who am i|what(?:'s| is) my name|do you (?:know|remember) (?:who i am|my name)|who is speaking|what is my identity)\b",
+    re.IGNORECASE,
+)
+
+
+def extract_doctor_intro_name(message: str) -> Optional[str]:
+    """Extracts physician name from self-introduction messages (e.g. 'I am doctor saviour', 'Call me Dr. Smith')."""
+    # 1. "I am Doctor Saviour", "I'm Dr. Smith", "Call me Dr. Saviour", "My name is Doctor Saviour"
+    m = re.search(
+        r"\b(?:i am|i'm|my name is|call me|this is)\s+(?:dr\.?|doctor)\s+([A-Za-z0-9_.\- ]+)",
+        message,
+        re.IGNORECASE,
+    )
+    if m:
+        raw_name = m.group(1).strip().rstrip(".,!?;:")
+        words = raw_name.split()
+        name_parts = []
+        for w in words[:3]:
+            if w.lower() in ("and", "the", "a", "an", "here", "today", "who", "with", "from", "at", "please"):
+                break
+            name_parts.append(w)
+        if name_parts:
+            return f"Dr. {' '.join(name_parts).title()}"
+
+    # 2. "Dr. Saviour here", "Doctor Saviour speaking"
+    m2 = re.search(
+        r"\b(?:dr\.?|doctor)\s+([A-Za-z0-9_.\-]+)\s+(?:here|speaking|on call)\b",
+        message,
+        re.IGNORECASE,
+    )
+    if m2:
+        return f"Dr. {m2.group(1).strip().rstrip('.,!?;:').title()}"
+
+    return None
+
+
+def extract_doctor_name_from_context(
+    doctor_profile: Optional[Dict[str, Any]] = None,
+    recalled_memories: Optional[List[str]] = None,
+) -> Optional[str]:
+    """Attempts to identify the attending physician's name from profile or recalled memories."""
+    if doctor_profile:
+        name = doctor_profile.get("full_name") or doctor_profile.get("name")
+        if name and str(name).strip():
+            return str(name).strip()
+
+    if recalled_memories:
+        for mem in recalled_memories:
+            m = re.search(r"Physician Profile / Identity \(([^)]+)\)", mem)
+            if m:
+                return m.group(1).strip()
+            m2 = re.search(
+                r"(?:doctor_profile|Physician identity is)\s*:\s*(?:Physician identity is\s*)?(Dr\.?\s+[A-Za-z0-9_.\-]+)",
+                mem,
+                re.IGNORECASE,
+            )
+            if m2:
+                return m2.group(1).strip()
+
+    return None
 
 
 def _requests_persistent_memory(message: str) -> bool:
@@ -76,6 +137,7 @@ class DocPilotCore:
         message: str,
         memory_enabled: bool = True,
         attachments: Optional[List[Dict[str, Any]]] = None,
+        doctor_profile: Optional[Dict[str, Any]] = None,
     ) -> Tuple[str, str, List[ExtractedClinicalEntity], Optional[str]]:
         """Processes a physician's query, note, and optional clinical documents.
 
@@ -84,11 +146,36 @@ class DocPilotCore:
             message: Clinical note or query text.
             memory_enabled: Whether MemWal may be used for recall and writes.
             attachments: Optional list of raw document/image attachments.
+            doctor_profile: Optional dictionary containing doctor's profile (name, email, specialty).
 
         Returns:
             Tuple of (response_text, action_taken, extracted_entities, suggested_title)
         """
         walrus = await get_walrus_client() if memory_enabled else None
+
+        # 0. Resolve doctor profile from Supabase if not explicitly provided
+        if doctor_profile is None and doctor_id:
+            try:
+                from db.doctors_queries import get_doctor_by_id
+                rec = await get_doctor_by_id(doctor_id)
+                if rec:
+                    doctor_profile = dict(rec)
+            except Exception as exc:
+                logger.debug("Could not auto-fetch doctor profile for %s: %s", doctor_id, exc)
+
+        # Detect message intent: self-introduction vs self-identity query
+        intro_doctor_name = extract_doctor_intro_name(message)
+        is_doctor_intro = intro_doctor_name is not None
+        is_identity_query = bool(_DOCTOR_IDENTITY_QUERY_PATTERN.search(message))
+
+        if is_doctor_intro and intro_doctor_name:
+            doctor_profile = dict(doctor_profile or {})
+            doctor_profile["full_name"] = intro_doctor_name
+            try:
+                from db.doctors_queries import update_doctor_profile
+                await update_doctor_profile(doctor_id, intro_doctor_name)
+            except Exception as exc:
+                logger.debug("Could not persist doctor profile name to Supabase: %s", exc)
 
         # 1. Parse and extract text from attached documents
         parsed_docs: List[ParsedDocument] = []
@@ -122,6 +209,8 @@ class DocPilotCore:
         recalled_memories = []
         if walrus is not None:
             recall_query = message.strip()
+            if is_identity_query:
+                recall_query = f"{recall_query} physician profile doctor identity name Dr attending physician"
             doc_names = [d.filename for d in parsed_docs if d.filename]
             if doc_names and not recall_query:
                 recall_query = f"Clinical documents: {', '.join(doc_names)}"
@@ -135,11 +224,12 @@ class DocPilotCore:
                     limit=5,
                 )
 
-        # 4. Build clinical prompt containing recalled memories, documents, and message
+        # 4. Build clinical prompt containing physician profile, recalled memories, documents, and message
         clinical_user_prompt = build_clinical_prompt(
             doctor_message=message,
             recalled_memories=recalled_memories,
             documents=parsed_docs,
+            doctor_profile=doctor_profile,
         )
 
         messages: List[Dict[str, Any]] = [
@@ -184,10 +274,57 @@ class DocPilotCore:
 
         entities = clean_extracted_entities(raw_entities) if memory_enabled else []
 
-        # 6. Commit new assertions & document references to Walrus memory
+        # Ensure doctor identity is documented when physician introduces themselves
+        if memory_enabled and is_doctor_intro and intro_doctor_name:
+            has_doc_entity = any(
+                str(e.category).lower() in ("doctor_profile", "doctor_preference")
+                for e in entities
+            )
+            if not has_doc_entity:
+                entities.append(
+                    ExtractedClinicalEntity(
+                        patient_name=intro_doctor_name,
+                        category="doctor_profile",
+                        detail=f"Physician identity is {intro_doctor_name}",
+                        confidence=1.0,
+                    )
+                )
+            if not suggested_title:
+                suggested_title = f"Physician Profile - {intro_doctor_name}"
+
+        # Grounding safeguard: ensure 'Who am I?' answers identify the physician, not DocPilot
+        known_doctor_name = extract_doctor_name_from_context(
+            doctor_profile=doctor_profile,
+            recalled_memories=recalled_memories,
+        )
+        if is_identity_query:
+            resp_lower = response_text.lower()
+            needs_correction = False
+            if "i am docpilot" in resp_lower or "you are docpilot" in resp_lower or "it is docpilot" in resp_lower:
+                needs_correction = True
+            elif known_doctor_name and known_doctor_name.lower() not in resp_lower:
+                needs_correction = True
+
+            if needs_correction:
+                if known_doctor_name:
+                    response_text = f"You are {known_doctor_name}. How can I assist you with your consultations today?"
+                elif not memory_enabled:
+                    response_text = (
+                        "You are the attending physician. MemWal persistent memory is currently disabled for this session."
+                    )
+                else:
+                    response_text = (
+                        "You are the attending physician, but your name hasn't been documented in persistent memory yet. "
+                        "How should I address you, Doctor?"
+                    )
+            if recalled_memories or known_doctor_name:
+                action_taken = "recall_memory"
+
+        # 6. Commit new assertions, physician profile, & document references to Walrus memory
         if memory_enabled and walrus is not None and (
             entities
             or has_document_text
+            or is_doctor_intro
             or normalized_action in {"update_memory", "save_new_memory", "save_memory"}
             or _requests_persistent_memory(message)
         ):
@@ -214,3 +351,4 @@ class DocPilotCore:
 
 # Singleton agent instance
 docpilot_agent = DocPilotCore()
+
